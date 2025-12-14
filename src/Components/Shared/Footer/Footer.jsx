@@ -4,7 +4,7 @@ import Logo from "../../Logo/Logo";
 
 const Footer = () => {
   return (
-    <footer className="footer sm:footer-horizontal bg-base-200 text-base-content p-10">
+    <footer className="footer sm:footer-horizontal bg-slate-900 base-content p-10 text-slate-50">
       {/* Brand */}
       <aside className="space-y-3">
         <Link to="/" className="flex items-center gap-3">
@@ -14,7 +14,7 @@ const Footer = () => {
           
         </Link>
 
-        <p className="max-w-xs">
+        <p className="max-w-xs ">
           <span className="font-semibold">LifeDrop Ltd.</span>
           <br />
           Connecting donors, saving lives since 2025.
