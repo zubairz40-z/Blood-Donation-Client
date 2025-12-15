@@ -1,120 +1,217 @@
-import React from "react";
-import { NavLink } from "react-router";
-import Logo from "./../../Logo/Logo";
-
-const linkBase =
-  "px-3 py-2 rounded-lg text-sm font-medium transition duration-200";
-const linkInactive =
-  "text-slate-700 hover:text-secondary hover:bg-secondary/10";
-const linkActive = "text-secondary bg-secondary/10";
-
-const desktopLinkClass = ({ isActive }) =>
-  `relative ${linkBase} ${isActive ? linkActive : linkInactive}
-   after:absolute after:left-3 after:right-3 after:-bottom-1 after:h-[2px]
-   after:rounded-full after:transition
-   ${isActive ? "after:bg-secondary" : "after:bg-transparent"}`;
-
-const mobileLinkClass = ({ isActive }) =>
-  `${linkBase} ${isActive ? linkActive : linkInactive}`;
+import { NavLink, Link, useNavigate } from "react-router";
+import useAuth from "../../../Hooks/useAuth";
+import Logo from "../../Logo/Logo";
 
 const Navbar = () => {
+  const { user, logOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logOut();
+    localStorage.removeItem("access-token");
+    navigate("/login");
+  };
+
+  const linkClass = ({ isActive }) =>
+    `px-4 py-2 rounded-full text-sm font-medium transition
+     ${
+       isActive
+         ? "bg-secondary text-secondary-content"
+         : "hover:bg-base-200/70"
+     }`;
+
+  // Always visible links
+  const commonLinks = (
+    <>
+      <li>
+        <NavLink to="/donation-requests" className={linkClass}>
+          Donation Requests
+        </NavLink>
+      </li>
+
+      <li>
+        <NavLink to="/search" className={linkClass}>
+          Search Donors
+        </NavLink>
+      </li>
+    </>
+  );
+
+  // Only when logged in
+  const authLinks = user ? (
+    <li>
+      <NavLink to="/funding" className={linkClass}>
+        Funding
+      </NavLink>
+    </li>
+  ) : null;
+
   return (
-    <div className="sticky top-0 z-50 w-full border-b border-slate-200/70 bg-white/80 backdrop-blur">
-      <div className="navbar mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* LEFT */}
-        <div className="navbar-start">
-          {/* Mobile menu */}
-          <div className="dropdown">
-            <label tabIndex={0} className="btn btn-ghost lg:hidden">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M4 6h16M4 12h8m-8 6h16"
-                />
-              </svg>
-            </label>
+    <header className="sticky top-0 z-50">
+      <div className="bg-white/80 backdrop-blur border-b border-slate-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="navbar min-h-[68px] p-0">
+            {/* Left */}
+            <div className="navbar-start gap-2">
+              {/* Mobile menu */}
+              <div className="dropdown">
+                <label
+                  tabIndex={0}
+                  className="btn btn-ghost btn-circle lg:hidden"
+                  aria-label="Open menu"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-6 w-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M4 6h16M4 12h16M4 18h16"
+                    />
+                  </svg>
+                </label>
 
-            <ul
-              tabIndex={0}
-              className="menu dropdown-content mt-3 w-56 rounded-2xl border border-slate-200 bg-white p-2 shadow-lg"
-            >
-              {[
-                { to: "/", label: "Home" },
-                { to: "/donation-requests", label: "Donation Requests" },
-                { to: "/search", label: "Search" },
-                { to: "/funding", label: "Funding" },
-              ].map((item) => (
-                <li key={item.to}>
-                  <NavLink to={item.to} className={mobileLinkClass}>
-                    {item.label}
-                  </NavLink>
-                </li>
-              ))}
+                <ul
+                  tabIndex={0}
+                  className="menu menu-sm dropdown-content mt-3 z-[1] w-60 rounded-2xl border border-base-200 bg-base-100 p-2 shadow-xl"
+                >
+                  {commonLinks}
+                  {authLinks}
+                  <div className="divider my-1" />
 
-              <li className="mt-2 border-t border-slate-200 pt-2">
-                <NavLink to="/login" className={mobileLinkClass}>
-                  Login
-                </NavLink>
-              </li>
-              <li>
-                <NavLink to="/register" className={mobileLinkClass}>
-                  Register
-                </NavLink>
-              </li>
-            </ul>
+                  {!user ? (
+                    <>
+                      <li>
+                        <Link
+                          to="/login"
+                          className="px-4 py-2 rounded-xl hover:bg-base-200/70"
+                        >
+                          Login
+                        </Link>
+                      </li>
+                      <li>
+                        <Link
+                          to="/register"
+                          className="px-4 py-2 rounded-xl font-semibold bg-secondary text-secondary-content hover:opacity-90"
+                        >
+                          Register
+                        </Link>
+                      </li>
+                    </>
+                  ) : (
+                    <>
+                      <li>
+                        <Link
+                          to="/dashboard"
+                          className="px-4 py-2 rounded-xl hover:bg-base-200/70"
+                        >
+                          Dashboard
+                        </Link>
+                      </li>
+                      <li>
+                        <button
+                          onClick={handleLogout}
+                          className="px-4 py-2 rounded-xl text-error hover:bg-base-200/70"
+                        >
+                          Logout
+                        </button>
+                      </li>
+                    </>
+                  )}
+                </ul>
+              </div>
+
+              {/* Brand */}
+              <Link to="/" className="flex items-center gap-2">
+                <Logo />
+              </Link>
+            </div>
+
+            {/* Center (desktop nav) */}
+            <div className="navbar-center hidden lg:flex">
+              <ul className="menu menu-horizontal px-1 gap-2">
+                {commonLinks}
+                {authLinks}
+              </ul>
+            </div>
+
+            {/* Right */}
+            <div className="navbar-end gap-2">
+              {!user ? (
+                <>
+                  <Link to="/login" className="btn btn-ghost rounded-full">
+                    Login
+                  </Link>
+
+                  <Link
+                    to="/register"
+                    className="btn btn-secondary border-0 rounded-full px-6"
+                  >
+                    Register
+                  </Link>
+                </>
+              ) : (
+                <div className="dropdown dropdown-end">
+                  <label
+                    tabIndex={0}
+                    className="btn btn-ghost rounded-full px-2 flex items-center gap-3"
+                  >
+                    <div className="avatar">
+                      <div className="w-10 rounded-full ring ring-secondary/40 ring-offset-base-100 ring-offset-2">
+                        <img
+                          src={
+                            user?.photoURL ||
+                            "https://i.ibb.co/2M7rtLk/default-avatar.png"
+                          }
+                          alt="User avatar"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Name beside avatar (desktop only) */}
+                    <div className="hidden sm:block text-left">
+                      <p className="text-sm font-semibold leading-4">
+                        {user?.displayName || "User"}
+                      </p>
+                      <p className="text-xs text-base-content/60 leading-4">
+                        {user?.email || ""}
+                      </p>
+                    </div>
+                  </label>
+
+                  <ul
+                    tabIndex={0}
+                    className="dropdown-content z-[1] mt-3 w-56 rounded-2xl border border-base-200 bg-base-100 p-2 shadow-xl"
+                  >
+                    <li>
+                      <Link to="/dashboard" className="rounded-xl">
+                        Dashboard
+                      </Link>
+                    </li>
+
+                    <div className="divider my-1" />
+
+                    <li>
+                      <button
+                        onClick={handleLogout}
+                        className="rounded-xl text-error hover:bg-base-200/70"
+                      >
+                        Logout
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+              )}
+            </div>
           </div>
-
-          {/* Logo */}
-          <NavLink to="/" className="flex items-center gap-2">
-            <span className="text-secondary">
-              <Logo />
-            </span>
-          </NavLink>
-        </div>
-
-        {/* CENTER (Desktop links) */}
-        <div className="navbar-center hidden lg:flex">
-          <ul className="flex items-center gap-1">
-            {[
-              { to: "/donation-requests", label: "Donation Requests" },
-              { to: "/funding", label: "Funding" },
-              { to: "/search", label: "Search" },
-            ].map((item) => (
-              <li key={item.to}>
-                <NavLink to={item.to} className={desktopLinkClass}>
-                  {item.label}
-                </NavLink>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {/* RIGHT buttons */}
-        <div className="navbar-end gap-2">
-          <NavLink
-            to="/login"
-            className="inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold text-slate-800 ring-1 ring-slate-200 transition hover:bg-slate-50 active:scale-[0.98]"
-          >
-            Login
-          </NavLink>
-
-          <NavLink
-            to="/register"
-            className="inline-flex items-center justify-center rounded-xl bg-secondary px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-secondary/20 transition hover:opacity-90 active:scale-[0.98]"
-          >
-            Register
-          </NavLink>
         </div>
       </div>
-    </div>
+    </header>
   );
 };
 

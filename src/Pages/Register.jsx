@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { getIdToken } from "firebase/auth";
 
 import useAuth from "../Hooks/useAuth";
 import axiosPublic from "../api/axiosPublic";
@@ -68,12 +67,16 @@ const Register = () => {
     }
 
     try {
+      // 1) Firebase create user (get user object)
       const result = await createUser(form.email, form.password);
 
+      // 2) Upload avatar to imgBB
       const avatarURL = await uploadToImgbb(form.avatar);
 
+      // 3) Update Firebase profile (name + photo)
       await updateUserProfile(form.name, avatarURL);
 
+      // 4) Save user to server (temporary or DB)
       const userInfo = {
         name: form.name,
         email: form.email,
@@ -88,7 +91,8 @@ const Register = () => {
 
       await axiosPublic.post("/users", userInfo);
 
-      const firebaseToken = await getIdToken(result.user, true);
+      // 5) Get Firebase token from the SAME user, then get server JWT
+      const firebaseToken = await result.user.getIdToken(true);
       const jwtRes = await axiosPublic.post("/jwt", { token: firebaseToken });
       localStorage.setItem("access-token", jwtRes.data.token);
 
@@ -121,7 +125,7 @@ const Register = () => {
                 <form onSubmit={handleSubmit} className="mt-7 space-y-4">
                   <div className="form-control">
                     <label className="label">
-                      <span className="label-text">Name </span>
+                      <span className="label-text">Name</span>
                     </label>
                     <input
                       name="name"
@@ -224,9 +228,7 @@ const Register = () => {
                         disabled={!form.district}
                       >
                         <option value="" disabled>
-                          {form.district
-                            ? "Select upazila"
-                            : "Select district first"}
+                          {form.district ? "Select upazila" : "Select district first"}
                         </option>
                         {upazilaOptions.map((u) => (
                           <option key={u} value={u}>
