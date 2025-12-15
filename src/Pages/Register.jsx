@@ -1,12 +1,17 @@
 import React, { useMemo, useState } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
+import { getIdToken } from "firebase/auth";
+
+import useAuth from "../Hooks/useAuth";
+import axiosPublic from "../api/axiosPublic";
+import uploadToImgbb from "../utils/uploadToImgbb";
+
 import LoginImage from "../assets/Blood donation-pana.png";
 import Googleicon from "../assets/google.png";
 import Logo from "../Components/Logo/Logo";
 
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
-// Temporary demo options (replace later with your real district/upazila data)
 const DISTRICTS = ["Dhaka", "Chattogram", "Rajshahi", "Khulna", "Sylhet"];
 const UPAZILAS_BY_DISTRICT = {
   Dhaka: ["Dhanmondi", "Mirpur", "Uttara", "Mohammadpur"],
@@ -17,6 +22,9 @@ const UPAZILAS_BY_DISTRICT = {
 };
 
 const Register = () => {
+  const navigate = useNavigate();
+  const { createUser, updateUserProfile } = useAuth();
+
   const [showPass, setShowPass] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -38,7 +46,6 @@ const Register = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    // Reset upazila when district changes
     if (name === "district") {
       setForm((p) => ({ ...p, district: value, upazila: "" }));
       return;
@@ -52,7 +59,7 @@ const Register = () => {
     setForm((p) => ({ ...p, avatar: file }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (form.password !== form.confirmPassword) {
@@ -60,18 +67,42 @@ const Register = () => {
       return;
     }
 
-    // TODO later:
-    // 1) Firebase create user
-    // 2) imgBB upload avatar -> avatarUrl
-    // 3) save MongoDB user with role:"donor", status:"active"
-    console.log("Register submit:", form);
+    try {
+      const result = await createUser(form.email, form.password);
+
+      const avatarURL = await uploadToImgbb(form.avatar);
+
+      await updateUserProfile(form.name, avatarURL);
+
+      const userInfo = {
+        name: form.name,
+        email: form.email,
+        avatar: avatarURL,
+        bloodGroup: form.bloodGroup,
+        district: form.district,
+        upazila: form.upazila,
+        role: "donor",
+        status: "active",
+        createdAt: new Date(),
+      };
+
+      await axiosPublic.post("/users", userInfo);
+
+      const firebaseToken = await getIdToken(result.user, true);
+      const jwtRes = await axiosPublic.post("/jwt", { token: firebaseToken });
+      localStorage.setItem("access-token", jwtRes.data.token);
+
+      navigate("/dashboard");
+    } catch (err) {
+      console.log(err);
+      alert(err?.message || "Register failed");
+    }
   };
 
   return (
     <div className="min-h-[calc(100vh-80px)] flex items-center py-10">
       <div className="max-w-7xl mx-auto w-full px-4">
         <div className="grid grid-cols-1 lg:grid-cols-2 items-stretch overflow-hidden rounded-3xl border border-base-200 bg-base-100 shadow-xl">
-          {/* LEFT: Form */}
           <div className="relative">
             <div className="hidden lg:block absolute top-0 right-0 h-full w-px bg-base-200" />
 
@@ -88,7 +119,6 @@ const Register = () => {
                 </div>
 
                 <form onSubmit={handleSubmit} className="mt-7 space-y-4">
-                
                   <div className="form-control">
                     <label className="label">
                       <span className="label-text">Name </span>
@@ -104,7 +134,6 @@ const Register = () => {
                     />
                   </div>
 
-                
                   <div className="form-control">
                     <label className="label">
                       <span className="label-text">Email</span>
@@ -120,7 +149,6 @@ const Register = () => {
                     />
                   </div>
 
-                  {/* Avatar */}
                   <div className="form-control">
                     <label className="label">
                       <span className="label-text">Avatar</span>
@@ -129,6 +157,7 @@ const Register = () => {
                       </span>
                     </label>
                     <input
+                      name="avatar"
                       type="file"
                       accept="image/*"
                       onChange={handleAvatar}
@@ -137,7 +166,6 @@ const Register = () => {
                     />
                   </div>
 
-                 
                   <div className="form-control">
                     <label className="label">
                       <span className="label-text">Blood group</span>
@@ -160,7 +188,6 @@ const Register = () => {
                     </select>
                   </div>
 
-                 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="form-control">
                       <label className="label">
@@ -197,7 +224,9 @@ const Register = () => {
                         disabled={!form.district}
                       >
                         <option value="" disabled>
-                          {form.district ? "Select upazila" : "Select district first"}
+                          {form.district
+                            ? "Select upazila"
+                            : "Select district first"}
                         </option>
                         {upazilaOptions.map((u) => (
                           <option key={u} value={u}>
@@ -234,7 +263,6 @@ const Register = () => {
                     </div>
                   </div>
 
-              
                   <div className="form-control">
                     <label className="label">
                       <span className="label-text">Confirm password</span>
@@ -268,7 +296,6 @@ const Register = () => {
                     Register
                   </button>
 
-            
                   <p className="text-sm text-center text-base-content/70">
                     Already have an account?{" "}
                     <Link
@@ -298,7 +325,6 @@ const Register = () => {
             </div>
           </div>
 
-         
           <div className="relative bg-secondary/10 overflow-hidden">
             <div className="pointer-events-none absolute -top-20 -left-20 h-60 w-60 rounded-full bg-secondary/20 blur-3xl" />
             <div className="pointer-events-none absolute -bottom-20 -right-20 h-60 w-60 rounded-full bg-secondary/20 blur-3xl" />

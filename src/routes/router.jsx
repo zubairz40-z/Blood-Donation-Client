@@ -10,6 +10,10 @@ import DonationRequests from './../Pages/DonationRequests';
 import Search from './../Pages/Search';
 import Login from './../Pages/Login';
 
+import Dashboard from './../Pages/Dashboard';
+
+import PrivateRoute1 from './PrivateRoute1';
+
 
 const router = createBrowserRouter([
   {
@@ -36,7 +40,15 @@ const router = createBrowserRouter([
         {
             path:"/Register",
             element:<Register></Register>
-        }
+        },{
+  path: "/dashboard",
+  element: (
+    <PrivateRoute1>
+      <Dashboard />
+    </PrivateRoute1>
+  ),
+}
+ 
     ]
 
     

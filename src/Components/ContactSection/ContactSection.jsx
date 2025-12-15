@@ -79,7 +79,7 @@ const ContactSection = () => {
                     Dhaka, Bangladesh
                   </p>
                   <p className="text-xs text-slate-500">
-                    (Put your office location later)
+                    Z Tower
                   </p>
                 </div>
               </div>
