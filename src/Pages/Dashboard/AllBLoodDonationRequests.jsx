@@ -1,13 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
-import useAuth from "../../Hooks/useAuth";
+import useUserRole from "../../Hooks/useUserRole";
 import { donationRequestsApi } from "../../api/donationRequests.api";
 import DonationRequestsTable from "../../Components/DashBoards/DonationRequestsTable";
 import Pagination from "../../Components/DashBoards/Pagination";
 import ConfirmModal from "../../Components/DashBoards/ConfirmModal";
 
 const AllBloodDonationRequests = () => {
-  const { user } = useAuth();
-  const role = user?.role || "donor"; // admin | volunteer
+  const { role, roleLoading } = useUserRole(); // ✅ role from DB
+  const isVolunteer = role === "volunteer";
+  const isAdmin = role === "admin";
 
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
@@ -17,11 +18,15 @@ const AllBloodDonationRequests = () => {
   const [data, setData] = useState({ items: [], total: 0 });
   const [deleteTarget, setDeleteTarget] = useState(null);
 
-  const totalPages = useMemo(() => Math.ceil((data.total || 0) / limit) || 1, [data.total]);
+  const totalPages = useMemo(
+    () => Math.ceil((data.total || 0) / limit) || 1,
+    [data.total]
+  );
 
   const load = async () => {
     setLoading(true);
     try {
+      // ✅ admin/volunteer should call admin endpoint
       const res = await donationRequestsApi.getAllRequests({ status, page, limit });
       setData(res);
     } catch (e) {
@@ -32,18 +37,30 @@ const AllBloodDonationRequests = () => {
     }
   };
 
-  useEffect(() => { load(); }, [status, page]);
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, page]);
 
   const onStatus = async (id, next) => {
-    await donationRequestsApi.updateStatus(id, next);
+    // ✅ volunteer can only update status, backend allows it
+    await donationRequestsApi.updateStatusAdmin(id, next);
     await load();
   };
 
   const onConfirmDelete = async () => {
-    await donationRequestsApi.deleteRequest(deleteTarget._id);
+    await donationRequestsApi.deleteRequestAdmin(deleteTarget._id);
     setDeleteTarget(null);
     await load();
   };
+
+  if (roleLoading) {
+    return (
+      <div className="min-h-[60vh] grid place-items-center">
+        <span className="loading loading-spinner loading-lg" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -51,7 +68,7 @@ const AllBloodDonationRequests = () => {
         <div>
           <h1 className="text-2xl font-bold">All Blood Donation Requests</h1>
           <p className="opacity-70 text-sm">
-            {role === "volunteer"
+            {isVolunteer
               ? "You can filter requests and update status only."
               : "You can manage all requests."}
           </p>
@@ -87,11 +104,12 @@ const AllBloodDonationRequests = () => {
           <div className="p-2">
             <DonationRequestsTable
               rows={data.items}
-              mode={role === "volunteer" ? "volunteer" : "admin"}
-              onDelete={role === "admin" ? setDeleteTarget : () => {}}
+              mode={isVolunteer ? "volunteer" : "admin"} // ✅ table decides what buttons show
+              onDelete={isAdmin ? setDeleteTarget : () => {}}
               onStatus={onStatus}
               onEditRoute="/dashboard/edit-donation-request"
             />
+
             <div className="px-4 pb-4">
               <Pagination page={page} totalPages={totalPages} onPage={setPage} />
             </div>
@@ -99,11 +117,13 @@ const AllBloodDonationRequests = () => {
         )}
       </div>
 
-      {/* Admin only delete modal */}
+      {/* ✅ Admin only delete modal */}
       <ConfirmModal
-        open={role === "admin" && !!deleteTarget}
+        open={isAdmin && !!deleteTarget}
         title="Delete request?"
-        message={`This will permanently delete the request for ${deleteTarget?.recipientName || ""}.`}
+        message={`This will permanently delete the request for ${
+          deleteTarget?.recipientName || ""
+        }.`}
         onCancel={() => setDeleteTarget(null)}
         onConfirm={onConfirmDelete}
         confirmText="Confirm Delete"

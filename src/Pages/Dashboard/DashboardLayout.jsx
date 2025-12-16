@@ -16,7 +16,7 @@ import {
 
 const DashboardLayout = () => {
   const { user, logOut } = useAuth();
-  const { role, roleLoading } = useUserRole();
+  const { dbUser, role, roleLoading } = useUserRole();
 
   const linkClass = ({ isActive }) =>
     [
@@ -25,39 +25,41 @@ const DashboardLayout = () => {
       isActive ? "bg-base-100 shadow-sm text-secondary" : "text-base-content/80",
     ].join(" ");
 
-  const avatarLetter = (user?.displayName?.[0] || user?.email?.[0] || "U").toUpperCase();
-  const photoURL = user?.photoURL || user?.photoUrl || user?.avatar;
+  // ✅ Prefer DB avatar (because profile updates go to DB)
+  const photoURL = dbUser?.avatar || user?.photoURL || "";
+  const avatarLetter = (dbUser?.name?.[0] || user?.displayName?.[0] || user?.email?.[0] || "U").toUpperCase();
+
+  const closeDrawerMobile = () => {
+    const el = document.getElementById("dashboard-drawer");
+    if (el) el.checked = false;
+  };
 
   const navItems = useMemo(() => {
-    // common for all
     const common = [
-      { to: "/dashboard", label: "Dashboard Home", icon: <FiHome />, end: true },
-      { to: "/dashboard/profile", label: "Profile", icon: <FiUser /> },
+      { to: "/dashboard", label: "Dashboard Home", icon: FiHome, end: true },
+      { to: "/dashboard/profile", label: "Profile", icon: FiUser },
     ];
 
-    // donor menu
     const donor = [
-      { to: "/dashboard/my-donation-requests", label: "My Donation Requests", icon: <FiDroplet /> },
-      { to: "/dashboard/create-donation-request", label: "Create Donation Request", icon: <FiPlusCircle /> },
+      { to: "/dashboard/my-donation-requests", label: "My Donation Requests", icon: FiDroplet },
+      { to: "/dashboard/create-donation-request", label: "Create Donation Request", icon: FiPlusCircle },
     ];
 
-    // admin menu
     const admin = [
-      { to: "/dashboard/all-users", label: "All Users", icon: <FiUsers /> },
-      { to: "/dashboard/all-blood-donation-request", label: "All Blood Requests", icon: <FiDroplet /> },
-      { to: "/dashboard/funding", label: "Funding", icon: <FiDollarSign /> },
+      { to: "/dashboard/all-users", label: "All Users", icon: FiUsers },
+      { to: "/dashboard/all-blood-donation-request", label: "All Blood Requests", icon: FiDroplet },
+      { to: "/dashboard/funding", label: "Funding", icon: FiDollarSign },
     ];
 
-    // volunteer menu
     const volunteer = [
-      { to: "/dashboard/all-blood-donation-request", label: "All Blood Requests", icon: <FiDroplet /> },
+      { to: "/dashboard/all-blood-donation-request", label: "All Blood Requests", icon: FiDroplet },
     ];
 
-    const footer = [{ to: "/", label: "Back to Home", icon: <FiArrowLeft /> }];
+    const footer = [{ to: "/", label: "Back to Home", icon: FiArrowLeft }];
 
     if (role === "admin") return [...common, ...admin, ...footer];
     if (role === "volunteer") return [...common, ...volunteer, ...footer];
-    return [...common, ...donor, ...footer]; // default donor
+    return [...common, ...donor, ...footer];
   }, [role]);
 
   if (roleLoading) {
@@ -75,7 +77,7 @@ const DashboardLayout = () => {
 
         {/* Content */}
         <div className="drawer-content">
-          {/* ✅ No navbar on top */}
+          {/* ✅ No top navbar */}
           <label
             htmlFor="dashboard-drawer"
             className="btn btn-secondary btn-circle fixed left-4 bottom-4 z-30 lg:hidden shadow-lg"
@@ -106,47 +108,77 @@ const DashboardLayout = () => {
                     {photoURL ? (
                       <img
                         src={photoURL}
-                        alt={user?.displayName || "User"}
+                        alt={dbUser?.name || user?.displayName || "User"}
                         className="h-full w-full object-cover"
                         referrerPolicy="no-referrer"
-                        onError={(e) => (e.currentTarget.style.display = "none")}
+                        onError={(e) => {
+                          // hide image if broken and show fallback
+                          e.currentTarget.style.display = "none";
+                        }}
                       />
-                    ) : (
-                      <div className="h-full w-full grid place-items-center bg-secondary/15 text-secondary font-bold text-lg">
-                        {avatarLetter}
-                      </div>
-                    )}
+                    ) : null}
+
+                    {/* fallback always exists behind image */}
+                    <div className="h-full w-full grid place-items-center bg-secondary/15 text-secondary font-bold text-lg">
+                      {avatarLetter}
+                    </div>
                   </div>
 
                   <div className="min-w-0">
                     <h2 className="text-lg font-bold text-base-content truncate">
-                      {user?.displayName || "Welcome back"}
+                      {dbUser?.name || user?.displayName || "Welcome back"}
                     </h2>
                     <p className="text-xs opacity-70 truncate">{user?.email}</p>
 
-                    {/* ✅ show role badge */}
                     <div className="mt-2">
-                      <span className="badge badge-secondary badge-outline capitalize">{role}</span>
+                      <span className="badge badge-secondary badge-outline capitalize">
+                        {role}
+                      </span>
+                      {dbUser?.status && (
+                        <span className={`badge ml-2 capitalize ${dbUser.status === "blocked" ? "badge-error" : "badge-success"}`}>
+                          {dbUser.status}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
               </div>
 
+              {/* Nav */}
               <div className="mt-6">
-                <p className="px-2 text-xs font-semibold tracking-wide opacity-60">NAVIGATION</p>
+                <p className="px-2 text-xs font-semibold tracking-wide opacity-60">
+                  NAVIGATION
+                </p>
+
                 <nav className="mt-2 space-y-1">
-                  {navItems.map((item) => (
-                    <NavLink key={item.to} to={item.to} end={item.end} className={linkClass}>
-                      <span className="absolute left-0 top-2 bottom-2 w-1 rounded-full bg-secondary opacity-0 group-[.active]:opacity-100" />
-                      <span className="text-lg opacity-90">{item.icon}</span>
-                      <span>{item.label}</span>
-                    </NavLink>
-                  ))}
+                  {navItems.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <NavLink
+                        key={item.to}
+                        to={item.to}
+                        end={item.end}
+                        className={linkClass}
+                        onClick={closeDrawerMobile}
+                      >
+                        <span className="absolute left-0 top-2 bottom-2 w-1 rounded-full bg-secondary opacity-0 group-[.active]:opacity-100" />
+                        <span className="text-lg opacity-90">
+                          <Icon />
+                        </span>
+                        <span>{item.label}</span>
+                      </NavLink>
+                    );
+                  })}
                 </nav>
               </div>
 
+              {/* Logout */}
               <div className="mt-6">
-                <button onClick={logOut} className="btn btn-error w-full rounded-xl" type="button">
+                <button
+                  onClick={logOut}
+                  className="btn btn-error w-full rounded-xl"
+                  type="button"
+                >
                   <FiLogOut />
                   <span className="ml-2">Logout</span>
                 </button>

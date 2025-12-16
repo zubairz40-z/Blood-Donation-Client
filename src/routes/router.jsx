@@ -8,7 +8,7 @@ import Login from "../Pages/Login";
 import Register from "../Pages/Register";
 import Users from "../Pages/Users";
 import DonationRequests from "../Pages/DonationRequests";
-import DonationRequestDetails from "../Pages/DonationRequestDetails";
+
 
 // Dashboard pages
 import DashboardLayout from "../Pages/Dashboard/DashboardLayout";
@@ -21,11 +21,14 @@ import AllBloodDonationRequests from "../Pages/Dashboard/AllBloodDonationRequest
 
 // Guards
 import PrivateRoute1 from "./PrivateRoute1";
-import RoleRoute from "./RoleRoute";
 
 // Optional
 import ErrorPage from "../Pages/ErrorPage";
 import NotFound from "../Pages/NotFound";
+import DonationRequestDetails from "./../Pages/DonationRequestDetail";
+
+import RoleRoute from "./RoleRoute";
+import Funding from './../Pages/Dashboard/Funding';
 
 const router = createBrowserRouter([
   {
@@ -38,6 +41,7 @@ const router = createBrowserRouter([
       // ✅ Public
       { path: "donation-requests", element: <DonationRequests /> },
       { path: "search", element: <Search /> },
+      { path: "funding", element: <Funding /> }, // ✅ ADD THIS ROUTE
       { path: "login", element: <Login /> },
       { path: "register", element: <Register /> },
       { path: "users", element: <Users /> },
@@ -78,6 +82,7 @@ const router = createBrowserRouter([
           </RoleRoute>
         ),
       },
+
       {
         path: "create-donation-request",
         element: (

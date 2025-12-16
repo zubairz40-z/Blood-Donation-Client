@@ -1,24 +1,43 @@
 import { apiFetch } from "./http";
 
 export const donationRequestsApi = {
-  // donor: only my requests
-  getMyRequests: ({ email, status, page, limit }) =>
-    apiFetch(`/donation-requests/my?email=${email}&status=${status || ""}&page=${page}&limit=${limit}`),
+  // ✅ Donor: my requests (filter + pagination)
+  getMyRequests: ({ status, page, limit }) =>
+    apiFetch(`/donation-requests/my?status=${status || ""}&page=${page}&limit=${limit}`),
 
-  // donor dashboard home: 3 recent
-  getMyRecent: ({ email }) =>
-    apiFetch(`/donation-requests/my-recent?email=${email}&limit=3`),
+  // ✅ Donor dashboard home: 3 recent (no email needed)
+  getMyRecent: () => apiFetch(`/donation-requests/my-recent`),
 
-  // admin/volunteer: all requests
+  // ✅ Admin/Volunteer: all requests (admin endpoint)
   getAllRequests: ({ status, page, limit }) =>
-    apiFetch(`/donation-requests?status=${status || ""}&page=${page}&limit=${limit}`),
+    apiFetch(`/admin/donation-requests?status=${status || ""}&page=${page}&limit=${limit}`),
 
+  // ✅ Create request (private)
   createRequest: (payload) =>
-    apiFetch(`/donation-requests`, { method: "POST", body: JSON.stringify(payload) }),
+    apiFetch(`/donation-requests`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 
-  updateStatus: (id, status) =>
-    apiFetch(`/donation-requests/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
+  // ✅ Donor status update (owner only) - inprogress -> done/canceled
+  updateStatusDonor: (id, status) =>
+    apiFetch(`/donation-requests/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }),
 
-  deleteRequest: (id) =>
+  // ✅ Admin/Volunteer status update (any request)
+  updateStatusAdmin: (id, status) =>
+    apiFetch(`/admin/donation-requests/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }),
+
+  // ✅ Donor delete (owner only)
+  deleteRequestDonor: (id) =>
     apiFetch(`/donation-requests/${id}`, { method: "DELETE" }),
+
+  // ✅ Admin delete (any request)
+  deleteRequestAdmin: (id) =>
+    apiFetch(`/admin/donation-requests/${id}`, { method: "DELETE" }),
 };
