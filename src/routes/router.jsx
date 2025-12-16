@@ -8,7 +8,7 @@ import Login from "../Pages/Login";
 import Register from "../Pages/Register";
 import Users from "../Pages/Users";
 import DonationRequests from "../Pages/DonationRequests";
-
+import DonationRequestDetails from "../Pages/DonationRequestDetail";
 
 // Dashboard pages
 import DashboardLayout from "../Pages/Dashboard/DashboardLayout";
@@ -18,17 +18,14 @@ import MyDonationRequests from "../Pages/Dashboard/MyDonationRequests";
 import CreateDonationRequest from "../Pages/Dashboard/CreateDonationRequest";
 import AllUsers from "../Pages/Dashboard/AllUsers";
 import AllBloodDonationRequests from "../Pages/Dashboard/AllBloodDonationRequests";
+import Funding from "../Pages/Dashboard/Funding";
 
 // Guards
 import PrivateRoute1 from "./PrivateRoute1";
+import RoleRoute from "./RoleRoute";
 
-// Optional
 import ErrorPage from "../Pages/ErrorPage";
 import NotFound from "../Pages/NotFound";
-import DonationRequestDetails from "./../Pages/DonationRequestDetail";
-
-import RoleRoute from "./RoleRoute";
-import Funding from './../Pages/Dashboard/Funding';
 
 const router = createBrowserRouter([
   {
@@ -41,7 +38,6 @@ const router = createBrowserRouter([
       // ✅ Public
       { path: "donation-requests", element: <DonationRequests /> },
       { path: "search", element: <Search /> },
-      { path: "funding", element: <Funding /> }, // ✅ ADD THIS ROUTE
       { path: "login", element: <Login /> },
       { path: "register", element: <Register /> },
       { path: "users", element: <Users /> },
@@ -70,10 +66,10 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <DashboardHome /> },
 
-      // ✅ shared
+      // ✅ shared for all roles
       { path: "profile", element: <Profile /> },
 
-      // ✅ Donor pages (donor + admin)
+      // ✅ donor + admin
       {
         path: "my-donation-requests",
         element: (
@@ -82,7 +78,6 @@ const router = createBrowserRouter([
           </RoleRoute>
         ),
       },
-
       {
         path: "create-donation-request",
         element: (
@@ -92,7 +87,7 @@ const router = createBrowserRouter([
         ),
       },
 
-      // ✅ Admin only
+      // ✅ admin only
       {
         path: "all-users",
         element: (
@@ -102,12 +97,22 @@ const router = createBrowserRouter([
         ),
       },
 
-      // ✅ Admin + Volunteer
+      // ✅ admin + volunteer
       {
         path: "all-blood-donation-request",
         element: (
           <RoleRoute allow={["admin", "volunteer"]}>
             <AllBloodDonationRequests />
+          </RoleRoute>
+        ),
+      },
+
+      // ✅ funding is PRIVATE (all logged-in users can view; you can restrict later)
+      {
+        path: "funding",
+        element: (
+          <RoleRoute allow={["donor", "admin", "volunteer"]}>
+            <Funding />
           </RoleRoute>
         ),
       },

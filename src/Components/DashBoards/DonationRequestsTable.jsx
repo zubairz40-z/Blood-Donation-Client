@@ -13,13 +13,13 @@ const badge = (status) => {
 
 /**
  * mode:
- *  - "donor" => edit/delete/view + done/cancel when inprogress
- *  - "admin" => full actions
- *  - "volunteer" => only status update (no edit/delete)
+ *  - "donor" => view/edit/delete + done/cancel only when inprogress
+ *  - "admin" => view/edit/delete + status dropdown always
+ *  - "volunteer" => view + status dropdown always (no edit/delete)
  */
 const DonationRequestsTable = ({
-  rows,
-  mode,
+  rows = [],
+  mode = "donor",
   onDelete,
   onStatus,
   onEditRoute,
@@ -29,7 +29,6 @@ const DonationRequestsTable = ({
 
   const canEdit = mode === "donor" || mode === "admin";
   const canDelete = mode === "donor" || mode === "admin";
-  const canStatus = mode === "donor" || mode === "admin" || mode === "volunteer";
 
   return (
     <div className="overflow-x-auto">
@@ -51,25 +50,55 @@ const DonationRequestsTable = ({
           {rows.map((r) => (
             <tr key={r._id}>
               <td className="font-medium">{r.recipientName}</td>
+
               <td className="text-sm opacity-80">
                 {r.recipientDistrict}, {r.recipientUpazila}
               </td>
+
               <td>{r.donationDate}</td>
               <td>{r.donationTime}</td>
-              <td><span className="badge badge-outline">{r.bloodGroup}</span></td>
 
+              <td>
+                <span className="badge badge-outline">{r.bloodGroup}</span>
+              </td>
+
+              {/* ✅ STATUS COLUMN */}
               <td>
                 <span className={badge(r.status)}>{r.status}</span>
 
-                {/* ✅ done/cancel only when inprogress + allowed */}
-                {canStatus && r.status === "inprogress" && (
+                {/* ✅ Donor: done/cancel only when inprogress */}
+                {mode === "donor" && r.status === "inprogress" && (
                   <div className="mt-2 flex gap-2">
-                    <button className="btn btn-success btn-xs" onClick={() => onStatus(r._id, "done")} type="button">
+                    <button
+                      className="btn btn-success btn-xs"
+                      onClick={() => onStatus?.(r._id, "done")}
+                      type="button"
+                    >
                       <FiCheckCircle /> Done
                     </button>
-                    <button className="btn btn-error btn-xs" onClick={() => onStatus(r._id, "canceled")} type="button">
+                    <button
+                      className="btn btn-error btn-xs"
+                      onClick={() => onStatus?.(r._id, "canceled")}
+                      type="button"
+                    >
                       <FiXCircle /> Cancel
                     </button>
+                  </div>
+                )}
+
+                {/* ✅ Admin/Volunteer: status dropdown always */}
+                {(mode === "admin" || mode === "volunteer") && (
+                  <div className="mt-2">
+                    <select
+                      className="select select-bordered select-xs rounded-lg"
+                      value={r.status}
+                      onChange={(e) => onStatus?.(r._id, e.target.value)}
+                    >
+                      <option value="pending">pending</option>
+                      <option value="inprogress">inprogress</option>
+                      <option value="done">done</option>
+                      <option value="canceled">canceled</option>
+                    </select>
                   </div>
                 )}
               </td>
@@ -85,6 +114,7 @@ const DonationRequestsTable = ({
                 )}
               </td>
 
+              {/* ✅ ACTIONS */}
               <td className="text-right">
                 <div className="flex justify-end gap-2 flex-wrap">
                   <button
@@ -96,7 +126,7 @@ const DonationRequestsTable = ({
                     <FiEye />
                   </button>
 
-                  {canEdit && (
+                  {canEdit && onEditRoute && (
                     <button
                       className="btn btn-ghost btn-sm"
                       type="button"
@@ -107,7 +137,7 @@ const DonationRequestsTable = ({
                     </button>
                   )}
 
-                  {canDelete && (
+                  {canDelete && typeof onDelete === "function" && (
                     <button
                       className="btn btn-ghost btn-sm text-error"
                       type="button"
@@ -121,6 +151,14 @@ const DonationRequestsTable = ({
               </td>
             </tr>
           ))}
+
+          {rows.length === 0 && (
+            <tr>
+              <td colSpan={8} className="text-center opacity-70 py-8">
+                No data found.
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
     </div>

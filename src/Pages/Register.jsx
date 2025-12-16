@@ -2,29 +2,22 @@ import React, { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router";
 
 import useAuth from "../Hooks/useAuth";
-import axiosPublic from "../api/axiosPublic";
+import axiosPublic from "../api/axiosPublic"; // ✅ FIXED (was axiosSecure)
 import uploadToImgbb from "../utils/uploadToImgbb";
 
 import LoginImage from "../assets/Blood donation-pana.png";
 import Googleicon from "../assets/google.png";
 import Logo from "../Components/Logo/Logo";
 
-// ✅ Put these JSON files in src/data/ (or adjust the paths)
 import districtsRaw from "../Data/bd-geo/districts.json";
 import upazilasRaw from "../Data/bd-geo/upazilas.json";
 
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
-// ✅ Supports either:
-// 1) plain array: [{id, name, ...}, ...]
-// 2) phpMyAdmin export array: [{type:'header'...}, {type:'table', name:'districts', data:[...]}]
 const extractTableData = (raw, tableName) => {
   if (!raw) return [];
-
-  // plain array of rows
   if (Array.isArray(raw) && raw.length && raw[0]?.id && raw[0]?.name) return raw;
 
-  // phpmyadmin export array
   if (Array.isArray(raw)) {
     const tableObj = raw.find(
       (x) => x?.type === "table" && String(x?.name).toLowerCase() === tableName
@@ -32,7 +25,6 @@ const extractTableData = (raw, tableName) => {
     if (tableObj?.data && Array.isArray(tableObj.data)) return tableObj.data;
   }
 
-  // sometimes exported as { data: [...] }
   if (raw?.data && Array.isArray(raw.data)) return raw.data;
 
   return [];
@@ -50,20 +42,15 @@ const Register = () => {
     email: "",
     avatar: null,
     bloodGroup: "",
-    district: "", // storing district name
-    upazila: "", // storing upazila name
+    district: "",
+    upazila: "",
     password: "",
     confirmPassword: "",
   });
 
-  // ✅ Normalize JSON tables
-  const districts = useMemo(
-    () => extractTableData(districtsRaw, "districts"),
-    []
-  );
+  const districts = useMemo(() => extractTableData(districtsRaw, "districts"), []);
   const upazilas = useMemo(() => extractTableData(upazilasRaw, "upazilas"), []);
 
-  // ✅ District options from JSON
   const districtOptions = useMemo(() => {
     return (districts || [])
       .map((d) => d?.name)
@@ -71,7 +58,6 @@ const Register = () => {
       .sort((a, b) => a.localeCompare(b));
   }, [districts]);
 
-  // ✅ Upazila options filtered by selected district
   const upazilaOptions = useMemo(() => {
     if (!form.district) return [];
 
@@ -114,36 +100,35 @@ const Register = () => {
     }
 
     try {
-      // 1) Firebase create user (get user object)
+      // ✅ 1) Firebase create user
       const result = await createUser(form.email, form.password);
+      const fbUser = result.user;
 
-      // 2) Upload avatar to imgBB
+      // ✅ 2) Upload avatar
       const avatarURL = await uploadToImgbb(form.avatar);
 
-      // 3) Update Firebase profile (name + photo)
+      // ✅ 3) Update Firebase profile
       await updateUserProfile(form.name, avatarURL);
 
-      // 4) Save user to server ✅ (as you requested)
-      const userInfo = {
+      // ✅ 4) Get backend JWT first + store it
+      const firebaseToken = await fbUser.getIdToken(true);
+      const jwtRes = await axiosPublic.post("/jwt", { token: firebaseToken });
+      localStorage.setItem("access-token", jwtRes.data.token);
+
+      // ✅ 5) Save user to MongoDB (so /users/me works)
+      await axiosPublic.post("/users", {
         name: form.name,
         email: form.email,
         avatar: avatarURL,
         bloodGroup: form.bloodGroup,
         district: form.district,
         upazila: form.upazila,
-      };
-
-      await axiosPublic.post("/users", userInfo);
-
-      // 5) Get Firebase token from the SAME user, then get server JWT
-      const firebaseToken = await result.user.getIdToken(true);
-      const jwtRes = await axiosPublic.post("/jwt", { token: firebaseToken });
-      localStorage.setItem("access-token", jwtRes.data.token);
+      });
 
       navigate("/dashboard");
     } catch (err) {
-      console.log(err);
-      alert(err?.message || "Register failed");
+      console.log("Register error:", err?.response?.data || err?.message || err);
+      alert(err?.response?.data?.message || err?.message || "Register failed");
     }
   };
 
@@ -161,8 +146,7 @@ const Register = () => {
                     Create account
                   </h2>
                   <p className="text-sm text-base-content/70">
-                    New users are created as <b>donor</b> with status{" "}
-                    <b>active</b>.
+                    New users are created as <b>donor</b> with status <b>active</b>.
                   </p>
                 </div>
 
@@ -176,7 +160,7 @@ const Register = () => {
                       value={form.name}
                       onChange={handleChange}
                       type="text"
-                      className="input input-bordered rounded-2xl focus-within:ring-2 focus-within:ring-secondary/30"
+                      className="input input-bordered rounded-2xl"
                       placeholder="Your full name"
                       required
                     />
@@ -191,7 +175,7 @@ const Register = () => {
                       value={form.email}
                       onChange={handleChange}
                       type="email"
-                      className="input input-bordered rounded-2xl focus-within:ring-2 focus-within:ring-secondary/30"
+                      className="input input-bordered rounded-2xl"
                       placeholder="you@example.com"
                       required
                     />
@@ -257,13 +241,6 @@ const Register = () => {
                           </option>
                         ))}
                       </select>
-
-                      {/* Optional hint if JSON not loaded */}
-                      {districtOptions.length === 0 && (
-                        <p className="mt-1 text-xs text-error">
-                          District data not found. Check your JSON import path.
-                        </p>
-                      )}
                     </div>
 
                     <div className="form-control">
@@ -279,9 +256,7 @@ const Register = () => {
                         disabled={!form.district}
                       >
                         <option value="" disabled>
-                          {form.district
-                            ? "Select upazila"
-                            : "Select district first"}
+                          {form.district ? "Select upazila" : "Select district first"}
                         </option>
                         {upazilaOptions.map((u) => (
                           <option key={u} value={u}>
@@ -296,7 +271,6 @@ const Register = () => {
                     <label className="label">
                       <span className="label-text">Password</span>
                     </label>
-
                     <div className="join w-full">
                       <input
                         name="password"
@@ -322,7 +296,6 @@ const Register = () => {
                     <label className="label">
                       <span className="label-text">Confirm password</span>
                     </label>
-
                     <div className="join w-full">
                       <input
                         name="confirmPassword"
@@ -353,10 +326,7 @@ const Register = () => {
 
                   <p className="text-sm text-center text-base-content/70">
                     Already have an account?{" "}
-                    <Link
-                      to="/login"
-                      className="link link-hover font-semibold text-secondary"
-                    >
+                    <Link to="/login" className="link link-hover font-semibold text-secondary">
                       Login
                     </Link>
                   </p>
@@ -364,7 +334,6 @@ const Register = () => {
 
                 <div className="divider my-6">OR</div>
 
-                {/* Social login not required — keeping your button as placeholder */}
                 <button
                   type="button"
                   className="btn btn-outline w-full rounded-2xl border-secondary/30 hover:border-secondary flex items-center justify-center gap-2"

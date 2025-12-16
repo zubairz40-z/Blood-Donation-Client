@@ -1,143 +1,142 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router";
-import { FiMapPin, FiClock, FiCalendar, FiEye, FiDroplet, FiRefreshCw } from "react-icons/fi";
+import axiosPublic from "../api/axiosPublic";
 
 const DonationRequests = () => {
   const [loading, setLoading] = useState(true);
-  const [requests, setRequests] = useState([]);
-  const [error, setError] = useState("");
+  const [items, setItems] = useState([]);
+  const [total, setTotal] = useState(0);
 
-  const API = import.meta.env.VITE_API_URL; // set this in .env
+  // basic pagination (optional but good)
+  const [page, setPage] = useState(1);
+  const limit = 12;
 
-  const fetchRequests = async () => {
-    setError("");
-    setLoading(true);
-    try {
-      // ✅ Best: server returns only pending
-      const res = await fetch(`${API}/donation-requests?status=pending`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.message || "Failed to load requests");
-
-      // supports array or {items:[]}
-      const list = Array.isArray(data) ? data : data?.items || [];
-      setRequests(list);
-    } catch (e) {
-      setError(e.message);
-      setRequests([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const totalPages = Math.max(1, Math.ceil(total / limit));
 
   useEffect(() => {
-    fetchRequests();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    let ignore = false;
 
-  // fallback safety (if API returns extra)
-  const pending = useMemo(
-    () => requests.filter((r) => (r?.status || "").toLowerCase() === "pending"),
-    [requests]
-  );
+    const run = async () => {
+      setLoading(true);
+      try {
+        const res = await axiosPublic.get("/donation-requests", {
+          params: { status: "pending", page, limit },
+        });
+
+        if (!ignore) {
+          setItems(res?.data?.items || []);
+          setTotal(res?.data?.total || 0);
+        }
+      } catch (err) {
+        if (!ignore) {
+          setItems([]);
+          setTotal(0);
+        }
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    };
+
+    run();
+    return () => {
+      ignore = true;
+    };
+  }, [page]);
 
   return (
-    <div className="w-full">
-      {/* Header */}
-      <div className="rounded-2xl bg-base-100/80 backdrop-blur border border-base-300/60 shadow-sm p-5 md:p-6">
-        <div className="flex items-start justify-between gap-3 flex-wrap">
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="rounded-3xl bg-base-100 border border-base-200 shadow-sm p-6">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-              Pending Blood Donation Requests
-            </h1>
-            <p className="opacity-70 mt-1">
-              Only pending requests are shown here. Click view to see details.
+            <h1 className="text-2xl font-bold">Pending Donation Requests</h1>
+            <p className="text-sm opacity-70 mt-1">
+              Only pending requests are shown here.
             </p>
           </div>
 
-          <button onClick={fetchRequests} className="btn btn-ghost rounded-xl">
-            <FiRefreshCw />
-            Refresh
-          </button>
+          <div className="text-sm opacity-70">
+            {loading ? "Loading..." : `${total} total`}
+          </div>
         </div>
       </div>
 
-      {/* Error */}
-      {error && (
-        <div className="alert alert-error rounded-2xl mt-6">
-          <span>{error}</span>
-        </div>
-      )}
-
-      {/* Loading */}
-      {loading && (
-        <div className="mt-6 rounded-2xl bg-base-100 border border-base-300/60 shadow-sm p-6 flex items-center gap-3">
+      {loading ? (
+        <div className="mt-6 rounded-3xl bg-base-100 border border-base-200 p-6 flex items-center gap-3">
           <span className="loading loading-spinner loading-md" />
-          <span className="opacity-70">Loading pending requests...</span>
+          <span className="opacity-70">Loading requests...</span>
         </div>
-      )}
-
-      {/* Empty */}
-      {!loading && pending.length === 0 && !error && (
-        <div className="mt-6 rounded-2xl bg-base-100 border border-base-300/60 shadow-sm p-6">
-          <h2 className="text-lg font-bold">No pending requests found</h2>
-          <p className="opacity-70 mt-1">Please check back later.</p>
+      ) : items.length === 0 ? (
+        <div className="mt-6 rounded-3xl bg-base-100 border border-base-200 p-6 text-center opacity-70">
+          No pending donation requests found.
         </div>
-      )}
-
-      {/* Cards */}
-      {!loading && pending.length > 0 && (
+      ) : (
         <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {pending.map((r) => (
+          {items.map((r) => (
             <div
               key={r._id}
-              className="rounded-2xl bg-base-100/80 backdrop-blur border border-base-300/60 shadow-sm hover:shadow-md transition overflow-hidden"
+              className="rounded-3xl bg-base-100 border border-base-200 shadow-sm p-5 flex flex-col"
             >
-              <div className="h-1 bg-secondary" />
-
-              <div className="p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h3 className="font-bold text-lg truncate">{r.recipientName}</h3>
-                    <p className="text-sm opacity-70 flex items-center gap-2 mt-1">
-                      <FiMapPin />
-                      <span className="truncate">
-                        {r.recipientDistrict}, {r.recipientUpazila}
-                      </span>
-                    </p>
-                  </div>
-
-                  <span className="badge badge-outline font-semibold">
-                    <FiDroplet className="mr-1" />
-                    {r.bloodGroup}
-                  </span>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs opacity-60 font-semibold">RECIPIENT</p>
+                  <h3 className="text-lg font-bold mt-1">{r.recipientName}</h3>
+                  <p className="text-sm opacity-70 mt-1">
+                    {r.recipientDistrict}, {r.recipientUpazila}
+                  </p>
                 </div>
 
-                <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                  <div className="rounded-xl bg-base-200/60 border border-base-300/60 p-3">
-                    <p className="opacity-70 flex items-center gap-2">
-                      <FiCalendar /> Date
-                    </p>
-                    <p className="font-semibold mt-1">{r.donationDate}</p>
-                  </div>
+                <span className="badge badge-secondary badge-outline font-semibold">
+                  {r.bloodGroup}
+                </span>
+              </div>
 
-                  <div className="rounded-xl bg-base-200/60 border border-base-300/60 p-3">
-                    <p className="opacity-70 flex items-center gap-2">
-                      <FiClock /> Time
-                    </p>
-                    <p className="font-semibold mt-1">{r.donationTime}</p>
-                  </div>
-                </div>
+              <div className="mt-4 text-sm opacity-80 space-y-1">
+                <p>
+                  <b>Date:</b> {r.donationDate}
+                </p>
+                <p>
+                  <b>Time:</b> {r.donationTime}
+                </p>
+                <p className="truncate">
+                  <b>Hospital:</b> {r.hospitalName || "—"}
+                </p>
+              </div>
 
-                <div className="mt-5 flex items-center justify-end">
-                  {/* ✅ Details is private: PrivateRoute will redirect if not logged in */}
-                  <Link to={`/donation-requests/${r._id}`} className="btn btn-secondary rounded-xl">
-                    <FiEye />
-                    View
-                  </Link>
-                </div>
+              <div className="mt-5">
+                <Link
+                  to={`/donation-requests/${r._id}`}
+                  className="btn btn-secondary rounded-2xl w-full"
+                >
+                  View
+                </Link>
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {!loading && totalPages > 1 && (
+        <div className="mt-6 flex items-center justify-center gap-2 flex-wrap">
+          <button
+            className="btn btn-sm rounded-xl"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+          >
+            Prev
+          </button>
+
+          <span className="text-sm opacity-70">
+            Page <b>{page}</b> of <b>{totalPages}</b>
+          </span>
+
+          <button
+            className="btn btn-sm rounded-xl"
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+          >
+            Next
+          </button>
         </div>
       )}
     </div>

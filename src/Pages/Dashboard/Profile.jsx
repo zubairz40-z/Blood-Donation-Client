@@ -1,50 +1,100 @@
 import React, { useEffect, useMemo, useState } from "react";
 import useAuth from "../../Hooks/useAuth";
+import axiosSecure from "../../api/axiosSecure";
 import { FiEdit2, FiSave, FiX } from "react-icons/fi";
 
 const bloodGroups = ["A+","A-","B+","B-","AB+","AB-","O+","O-"];
 
 const Profile = () => {
-  const { user } = useAuth();
+  const { user, updateUserProfile } = useAuth();
 
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(true);
 
+  // Firebase fallback (DB will overwrite when loaded)
   const initial = useMemo(
     () => ({
       name: user?.displayName || "",
       email: user?.email || "",
       avatar: user?.photoURL || "https://i.ibb.co/2M7rtLk/default-avatar.png",
-      district: "",   // load from DB
-      upazila: "",    // load from DB
-      bloodGroup: "", // load from DB
-      role: user?.role || "", // optional if you store role in auth/db
+      district: "",
+      upazila: "",
+      bloodGroup: "",
+      role: "",
     }),
     [user]
   );
 
   const [form, setForm] = useState(initial);
+  const [snapshot, setSnapshot] = useState(initial);
 
+  // ✅ Load profile from MongoDB
   useEffect(() => {
-    setForm(initial);
-  }, [initial]);
+    const load = async () => {
+      try {
+        setLoadingProfile(true);
+
+        // no user -> stop
+        if (!user?.email) {
+          setForm(initial);
+          setSnapshot(initial);
+          return;
+        }
+
+        // if token missing -> keep fallback
+        const token = localStorage.getItem("access-token");
+        if (!token) {
+          setForm(initial);
+          setSnapshot(initial);
+          return;
+        }
+
+        const res = await axiosSecure.get("/users/me");
+        const dbUser = res?.data;
+
+        const newForm = {
+          name: dbUser?.name || initial.name,
+          email: dbUser?.email || initial.email,
+          avatar: dbUser?.avatar || initial.avatar,
+          district: dbUser?.district || "",
+          upazila: dbUser?.upazila || "",
+          bloodGroup: dbUser?.bloodGroup || "",
+          role: dbUser?.role || "",
+        };
+
+        setForm(newForm);
+        setSnapshot(newForm);
+      } catch (err) {
+        console.log("Load profile error:", err?.message || err);
+        setForm(initial);
+        setSnapshot(initial);
+      } finally {
+        setLoadingProfile(false);
+      }
+    };
+
+    load();
+  }, [user?.email, initial]);
 
   const onChange = (e) => {
     const { name, value } = e.target;
     setForm((p) => ({ ...p, [name]: value }));
   };
 
+  // ✅ Update profile in MongoDB
   const updateProfileToDB = async (payload) => {
-    // TODO: replace with your axios/fetch call
-    // example: await axiosSecure.patch("/users/me", payload)
-    return new Promise((resolve) => setTimeout(resolve, 700));
+    // requires PATCH /users/me in backend
+    const res = await axiosSecure.patch("/users/me", payload);
+    return res.data;
   };
 
   const onSave = async (e) => {
     e.preventDefault();
     setSaving(true);
+
     try {
-      // email must never be updated
+      // whitelist only
       const payload = {
         name: form.name,
         avatar: form.avatar,
@@ -55,16 +105,24 @@ const Profile = () => {
 
       await updateProfileToDB(payload);
 
+      // ✅ optional: sync Firebase displayName/photoURL
+      if (updateUserProfile) {
+        await updateUserProfile(form.name, form.avatar);
+      }
+
+      setSnapshot(form);
       setIsEditing(false);
+      alert("✅ Profile updated!");
     } catch (err) {
       console.error(err);
+      alert(err?.response?.data?.message || err?.message || "Update failed");
     } finally {
       setSaving(false);
     }
   };
 
   const onCancel = () => {
-    setForm(initial);
+    setForm(snapshot);
     setIsEditing(false);
   };
 
@@ -78,6 +136,16 @@ const Profile = () => {
     </div>
   );
 
+  if (loadingProfile) {
+    return (
+      <div className="w-full">
+        <div className="rounded-2xl border border-base-300/60 bg-base-100 p-6">
+          <p className="opacity-70">Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full">
       {/* Header */}
@@ -89,15 +157,13 @@ const Profile = () => {
           </p>
         </div>
 
-        {/* Edit / Save / Cancel */}
         {!isEditing ? (
           <button
             className="btn btn-secondary rounded-xl"
             onClick={() => setIsEditing(true)}
             type="button"
           >
-            <FiEdit2 />
-            Edit
+            <FiEdit2 /> Edit
           </button>
         ) : (
           <div className="flex items-center gap-2">
@@ -107,8 +173,7 @@ const Profile = () => {
               type="button"
               disabled={saving}
             >
-              <FiX />
-              Cancel
+              <FiX /> Cancel
             </button>
             <button
               className="btn btn-primary rounded-xl"
@@ -116,8 +181,7 @@ const Profile = () => {
               type="submit"
               disabled={saving}
             >
-              <FiSave />
-              {saving ? "Saving..." : "Save"}
+              <FiSave /> {saving ? "Saving..." : "Save"}
             </button>
           </div>
         )}
@@ -125,33 +189,25 @@ const Profile = () => {
 
       {/* Card */}
       <div className="mt-6 rounded-2xl bg-base-100/80 backdrop-blur border border-base-300/60 shadow-sm">
-        {/* Top section */}
+        {/* Top */}
         <div className="p-4 sm:p-6 border-b border-base-300/60">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-            {/* Avatar */}
             <div className="flex items-center gap-4">
-              <div className="relative">
-                <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl overflow-hidden border border-base-300/60 shadow-sm bg-base-200">
-                  <img
-                    src={form.avatar}
-                    alt="avatar"
-                    className="h-full w-full object-cover"
-                    referrerPolicy="no-referrer"
-                  />
-                </div>
-                <div className="absolute -bottom-2 -right-2">
-              
-                </div>
+              <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl overflow-hidden border border-base-300/60 shadow-sm bg-base-200">
+                <img
+                  src={form.avatar}
+                  alt="avatar"
+                  className="h-full w-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
               </div>
 
-              {/* Name + gap + badges */}
               <div className="min-w-0">
                 <div className="flex items-center gap-3 flex-wrap">
                   <p className="text-lg sm:text-xl font-bold truncate">
                     {form.name || "User"}
                   </p>
 
-                  {/* ✅ gap beside name + modern badges */}
                   {form.bloodGroup ? (
                     <span className="badge badge-primary badge-outline">
                       {form.bloodGroup}
@@ -171,9 +227,9 @@ const Profile = () => {
 
                 {(form.district || form.upazila) && (
                   <p className="text-sm opacity-70 mt-1">
-                    {form.upazila ? form.upazila : "—"}
+                    {form.upazila || "—"}
                     <span className="mx-2 opacity-40">•</span>
-                    {form.district ? form.district : "—"}
+                    {form.district || "—"}
                   </p>
                 )}
               </div>
@@ -255,7 +311,6 @@ const Profile = () => {
             </Field>
           </div>
 
-          {/* Bottom helper (only when locked) */}
           {!isEditing && (
             <div className="mt-5 rounded-xl bg-base-200/70 border border-base-300/60 p-4">
               <p className="text-sm opacity-70">

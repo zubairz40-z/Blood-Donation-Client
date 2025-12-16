@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axiosPublic from "../api/axiosPublic";
+import axiosPublic from "../api/axiosSecure";
 
 const Users = () => {
   const [users, setUsers] = useState([]);

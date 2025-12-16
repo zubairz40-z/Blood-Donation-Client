@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { NavLink, Outlet } from "react-router";
 import useAuth from "../../Hooks/useAuth";
 import useUserRole from "../../Hooks/useUserRole";
@@ -18,16 +18,20 @@ const DashboardLayout = () => {
   const { user, logOut } = useAuth();
   const { dbUser, role, roleLoading } = useUserRole();
 
+  // ✅ MongoDB = source of truth
+  const displayName = dbUser?.name || "User";
+  const email = user?.email || "";
+  const photoURL = dbUser?.avatar || "";
+  const avatarLetter = (displayName?.[0] || email?.[0] || "U").toUpperCase();
+
+  const [imgOk, setImgOk] = useState(true);
+
   const linkClass = ({ isActive }) =>
     [
       "group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition",
       "hover:bg-base-100/70 hover:shadow-sm",
       isActive ? "bg-base-100 shadow-sm text-secondary" : "text-base-content/80",
     ].join(" ");
-
-  // ✅ Prefer DB avatar (because profile updates go to DB)
-  const photoURL = dbUser?.avatar || user?.photoURL || "";
-  const avatarLetter = (dbUser?.name?.[0] || user?.displayName?.[0] || user?.email?.[0] || "U").toUpperCase();
 
   const closeDrawerMobile = () => {
     const el = document.getElementById("dashboard-drawer");
@@ -70,6 +74,19 @@ const DashboardLayout = () => {
     );
   }
 
+  if (!role) {
+    return (
+      <div className="min-h-screen grid place-items-center">
+        <div className="rounded-2xl bg-base-100 border border-base-300/60 shadow-sm p-6 text-center">
+          <p className="font-semibold">User role not found</p>
+          <p className="opacity-70 text-sm mt-1">
+            Please login again or check your users collection.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-base-200 to-base-100">
       <div className="drawer lg:drawer-open">
@@ -77,7 +94,6 @@ const DashboardLayout = () => {
 
         {/* Content */}
         <div className="drawer-content">
-          {/* ✅ No top navbar */}
           <label
             htmlFor="dashboard-drawer"
             className="btn btn-secondary btn-circle fixed left-4 bottom-4 z-30 lg:hidden shadow-lg"
@@ -105,37 +121,38 @@ const DashboardLayout = () => {
               <div className="rounded-2xl bg-base-100/70 border border-base-300/60 p-4 shadow-sm">
                 <div className="flex items-center gap-3">
                   <div className="h-12 w-12 rounded-2xl overflow-hidden border border-base-300/60 bg-base-100 shadow-sm">
-                    {photoURL ? (
+                    {photoURL && imgOk ? (
                       <img
                         src={photoURL}
-                        alt={dbUser?.name || user?.displayName || "User"}
+                        alt={displayName}
                         className="h-full w-full object-cover"
                         referrerPolicy="no-referrer"
-                        onError={(e) => {
-                          // hide image if broken and show fallback
-                          e.currentTarget.style.display = "none";
-                        }}
+                        onError={() => setImgOk(false)}
                       />
-                    ) : null}
-
-                    {/* fallback always exists behind image */}
-                    <div className="h-full w-full grid place-items-center bg-secondary/15 text-secondary font-bold text-lg">
-                      {avatarLetter}
-                    </div>
+                    ) : (
+                      <div className="h-full w-full grid place-items-center bg-secondary/15 text-secondary font-bold text-lg">
+                        {avatarLetter}
+                      </div>
+                    )}
                   </div>
 
                   <div className="min-w-0">
                     <h2 className="text-lg font-bold text-base-content truncate">
-                      {dbUser?.name || user?.displayName || "Welcome back"}
+                      {displayName}
                     </h2>
-                    <p className="text-xs opacity-70 truncate">{user?.email}</p>
+                    <p className="text-xs opacity-70 truncate">{email}</p>
 
                     <div className="mt-2">
                       <span className="badge badge-secondary badge-outline capitalize">
                         {role}
                       </span>
+
                       {dbUser?.status && (
-                        <span className={`badge ml-2 capitalize ${dbUser.status === "blocked" ? "badge-error" : "badge-success"}`}>
+                        <span
+                          className={`badge ml-2 capitalize ${
+                            dbUser.status === "blocked" ? "badge-error" : "badge-success"
+                          }`}
+                        >
                           {dbUser.status}
                         </span>
                       )}

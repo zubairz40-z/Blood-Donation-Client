@@ -5,9 +5,14 @@ import Footer from "../../Components/Shared/Footer/Footer";
 
 const Mainlayoutp = () => {
   return (
-    <div className="bg-slate-50">
+    <div className="min-h-screen flex flex-col bg-slate-50">
       <Navbar />
-      <Outlet />
+
+      {/* main content grows so footer stays at bottom */}
+      <main className="flex-1">
+        <Outlet />
+      </main>
+
       <Footer />
     </div>
   );

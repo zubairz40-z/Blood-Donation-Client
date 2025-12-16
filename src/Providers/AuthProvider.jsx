@@ -6,8 +6,6 @@ import {
   updateProfile,
   signOut,
 } from "firebase/auth";
-
-// ✅ import directly from firebase.init.js (no wrapper file needed)
 import { auth } from "../firebase1/firebase.init";
 
 export const AuthContext = createContext(null);
@@ -25,7 +23,6 @@ const AuthProvider = ({ children }) => {
   const updateUserProfile = (name, photoURL) =>
     updateProfile(auth.currentUser, { displayName: name, photoURL });
 
-  // ✅ remove token on logout
   const logOut = async () => {
     localStorage.removeItem("access-token");
     return signOut(auth);
@@ -33,12 +30,12 @@ const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setLoading(true);
       setUser(currentUser);
 
-      // ✅ if logged in, create server JWT and save it
       if (currentUser?.email) {
         try {
-          const firebaseToken = await currentUser.getIdToken();
+          const firebaseToken = await currentUser.getIdToken(true);
 
           const res = await fetch(`${import.meta.env.VITE_API_URL}/jwt`, {
             method: "POST",
@@ -58,7 +55,6 @@ const AuthProvider = ({ children }) => {
           localStorage.removeItem("access-token");
         }
       } else {
-        // ✅ if logged out, remove token
         localStorage.removeItem("access-token");
       }
 
@@ -68,17 +64,12 @@ const AuthProvider = ({ children }) => {
     return () => unsubscribe();
   }, []);
 
-  const authInfo = {
-    user,
-    loading,
-    createUser,
-    signIn,
-    updateUserProfile,
-    logOut,
-  };
-
   return (
-    <AuthContext.Provider value={authInfo}>{children}</AuthContext.Provider>
+    <AuthContext.Provider
+      value={{ user, loading, createUser, signIn, updateUserProfile, logOut }}
+    >
+      {children}
+    </AuthContext.Provider>
   );
 };
 

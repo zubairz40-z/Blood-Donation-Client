@@ -1,9 +1,6 @@
 import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
-import { getIdToken } from "firebase/auth";
-
 import useAuth from "../Hooks/useAuth";
-import { auth } from "../firebase1/firebase.init"; // ✅ FIXED
 import axiosPublic from "../api/axiosPublic";
 
 import LoginImage from "../assets/Blood donation-pana.png";
@@ -12,6 +9,8 @@ import Logo from "../Components/Logo/Logo";
 
 const Login = () => {
   const [showPass, setShowPass] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -21,24 +20,43 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
+    setSubmitting(true);
 
     const form = e.target;
-    const email = form.email.value;
+    const email = form.email.value.trim();
     const password = form.password.value;
 
     try {
-      await signIn(email, password);
+      // ✅ 1) Firebase login
+      const result = await signIn(email, password);
+      const fbUser = result.user;
 
-      const firebaseToken = await getIdToken(auth.currentUser, true);
-      const res = await axiosPublic.post("/jwt", { token: firebaseToken });
+      // ✅ 2) Firebase ID Token
+      const firebaseToken = await fbUser.getIdToken(true);
 
-      localStorage.setItem("access-token", res.data.token);
+      // ✅ 3) Exchange Firebase token → backend JWT
+      const jwtRes = await axiosPublic.post("/jwt", { token: firebaseToken });
+
+      if (!jwtRes?.data?.token) throw new Error("JWT failed");
+
+      // ✅ 4) Store backend JWT
+      localStorage.setItem("access-token", jwtRes.data.token);
+
+      // ✅ 5) Save/Update user in MongoDB (so /users/me works)
+      await axiosPublic.post("/users", {
+        name: fbUser.displayName || "User",
+        email: fbUser.email,
+        avatar: fbUser.photoURL || "",
+      });
 
       form.reset();
       navigate(from, { replace: true });
     } catch (err) {
-      console.log(err);
-      alert(err?.message || "Login failed");
+      console.log("Login error:", err?.response?.data || err?.message || err);
+      setError(err?.response?.data?.message || "Invalid email or password");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -142,22 +160,18 @@ const Login = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between pt-1">
-                    <label className="label cursor-pointer gap-2 p-0">
-                      <input type="checkbox" className="checkbox checkbox-sm" />
-                      <span className="label-text text-sm">Remember me</span>
-                    </label>
-
-                    <span className="text-xs text-base-content/60">
-                      Secured login
-                    </span>
-                  </div>
+                  {error ? (
+                    <div className="alert alert-error rounded-2xl py-2 text-sm">
+                      <span>{error}</span>
+                    </div>
+                  ) : null}
 
                   <button
                     className="btn w-full rounded-2xl bg-secondary text-secondary-content hover:bg-secondary/90 border-0"
                     type="submit"
+                    disabled={submitting}
                   >
-                    Login
+                    {submitting ? "Logging in..." : "Login"}
                   </button>
 
                   <p className="text-sm text-center text-base-content/70">

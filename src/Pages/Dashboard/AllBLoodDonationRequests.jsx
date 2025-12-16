@@ -6,7 +6,7 @@ import Pagination from "../../Components/DashBoards/Pagination";
 import ConfirmModal from "../../Components/DashBoards/ConfirmModal";
 
 const AllBloodDonationRequests = () => {
-  const { role, roleLoading } = useUserRole(); // ✅ role from DB
+  const { role, roleLoading } = useUserRole();
   const isVolunteer = role === "volunteer";
   const isAdmin = role === "admin";
 
@@ -26,7 +26,7 @@ const AllBloodDonationRequests = () => {
   const load = async () => {
     setLoading(true);
     try {
-      // ✅ admin/volunteer should call admin endpoint
+      // ✅ admin/volunteer endpoint
       const res = await donationRequestsApi.getAllRequests({ status, page, limit });
       setData(res);
     } catch (e) {
@@ -38,17 +38,19 @@ const AllBloodDonationRequests = () => {
   };
 
   useEffect(() => {
+    if (roleLoading) return; // ✅ wait for role + token
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, page]);
+  }, [roleLoading, status, page]);
 
   const onStatus = async (id, next) => {
-    // ✅ volunteer can only update status, backend allows it
+    // ✅ volunteer allowed to update status
     await donationRequestsApi.updateStatusAdmin(id, next);
     await load();
   };
 
   const onConfirmDelete = async () => {
+    if (!deleteTarget?._id) return;
     await donationRequestsApi.deleteRequestAdmin(deleteTarget._id);
     setDeleteTarget(null);
     await load();
@@ -58,6 +60,16 @@ const AllBloodDonationRequests = () => {
     return (
       <div className="min-h-[60vh] grid place-items-center">
         <span className="loading loading-spinner loading-lg" />
+      </div>
+    );
+  }
+
+  // ✅ Optional safety: if donor enters this route by typing URL
+  if (!isAdmin && !isVolunteer) {
+    return (
+      <div className="rounded-2xl bg-base-100 border border-base-300/60 shadow-sm p-6">
+        <p className="font-bold">Forbidden</p>
+        <p className="opacity-70 text-sm">This page is only for Admin/Volunteer.</p>
       </div>
     );
   }
@@ -104,10 +116,11 @@ const AllBloodDonationRequests = () => {
           <div className="p-2">
             <DonationRequestsTable
               rows={data.items}
-              mode={isVolunteer ? "volunteer" : "admin"} // ✅ table decides what buttons show
-              onDelete={isAdmin ? setDeleteTarget : () => {}}
+              mode={isVolunteer ? "volunteer" : "admin"}
               onStatus={onStatus}
-              onEditRoute="/dashboard/edit-donation-request"
+              onDelete={isAdmin ? (row) => setDeleteTarget(row) : undefined}
+              onEditRoute={isAdmin ? "/dashboard/edit-donation-request" : null}
+              detailsRouteBase="/donation-requests"
             />
 
             <div className="px-4 pb-4">
@@ -117,13 +130,10 @@ const AllBloodDonationRequests = () => {
         )}
       </div>
 
-      {/* ✅ Admin only delete modal */}
       <ConfirmModal
         open={isAdmin && !!deleteTarget}
         title="Delete request?"
-        message={`This will permanently delete the request for ${
-          deleteTarget?.recipientName || ""
-        }.`}
+        message={`This will permanently delete the request for ${deleteTarget?.recipientName || ""}.`}
         onCancel={() => setDeleteTarget(null)}
         onConfirm={onConfirmDelete}
         confirmText="Confirm Delete"

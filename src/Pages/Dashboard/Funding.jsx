@@ -2,7 +2,7 @@
 import React, { useMemo, useState } from "react";
 import { Link } from "react-router";
 
-import axiosPublic from './../../api/axiosPublic';
+import axiosPublic from '../../api/axiosSecure';
 import useAuth from './../../Hooks/useAuth';
 import Logo from './../../Components/Logo/Logo';
 

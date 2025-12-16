@@ -2,15 +2,15 @@ import { apiFetch } from "./http";
 
 export const donationRequestsApi = {
   // ✅ Donor: my requests (filter + pagination)
-  getMyRequests: ({ status, page, limit }) =>
-    apiFetch(`/donation-requests/my?status=${status || ""}&page=${page}&limit=${limit}`),
+  getMyRequests: ({ status = "", page = 1, limit = 10 } = {}) =>
+    apiFetch(`/donation-requests/my?status=${status}&page=${page}&limit=${limit}`),
 
-  // ✅ Donor dashboard home: 3 recent (no email needed)
+  // ✅ Donor dashboard home: 3 recent
   getMyRecent: () => apiFetch(`/donation-requests/my-recent`),
 
-  // ✅ Admin/Volunteer: all requests (admin endpoint)
-  getAllRequests: ({ status, page, limit }) =>
-    apiFetch(`/admin/donation-requests?status=${status || ""}&page=${page}&limit=${limit}`),
+  // ✅ Admin/Volunteer: all requests
+  getAllRequests: ({ status = "", page = 1, limit = 10 } = {}) =>
+    apiFetch(`/admin/donation-requests?status=${status}&page=${page}&limit=${limit}`),
 
   // ✅ Create request (private)
   createRequest: (payload) =>
@@ -19,7 +19,7 @@ export const donationRequestsApi = {
       body: JSON.stringify(payload),
     }),
 
-  // ✅ Donor status update (owner only) - inprogress -> done/canceled
+  // ✅ Donor status update (owner only)
   updateStatusDonor: (id, status) =>
     apiFetch(`/donation-requests/${id}/status`, {
       method: "PATCH",
