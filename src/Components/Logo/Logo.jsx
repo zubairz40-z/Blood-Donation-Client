@@ -3,7 +3,7 @@ import MainLogo from "../../assets/blood-drop.png"
 
 
 const Logo =()=>{
-    console.log(import.meta.env.VITE_apiKey);
+ console.log(import.meta.env.VITE_FIREBASE_API_KEY);
 
     return(
         <div className="flex items-end">

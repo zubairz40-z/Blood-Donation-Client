@@ -1,36 +1,40 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
-import { FiMapPin, FiClock, FiCalendar, FiEye, FiDroplet } from "react-icons/fi";
+import { FiMapPin, FiClock, FiCalendar, FiEye, FiDroplet, FiRefreshCw } from "react-icons/fi";
 
 const DonationRequests = () => {
   const [loading, setLoading] = useState(true);
   const [requests, setRequests] = useState([]);
+  const [error, setError] = useState("");
 
-  // ✅ Replace with your real API call
-  const fetchPendingRequests = async () => {
-    // Example:
-    // const res = await fetch(`${import.meta.env.VITE_API_URL}/donation-requests?status=pending`);
-    // return await res.json();
-    return []; // demo
+  const API = import.meta.env.VITE_API_URL; // set this in .env
+
+  const fetchRequests = async () => {
+    setError("");
+    setLoading(true);
+    try {
+      // ✅ Best: server returns only pending
+      const res = await fetch(`${API}/donation-requests?status=pending`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.message || "Failed to load requests");
+
+      // supports array or {items:[]}
+      const list = Array.isArray(data) ? data : data?.items || [];
+      setRequests(list);
+    } catch (e) {
+      setError(e.message);
+      setRequests([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    const run = async () => {
-      setLoading(true);
-      try {
-        const data = await fetchPendingRequests();
-        setRequests(Array.isArray(data) ? data : []);
-      } catch (err) {
-        console.error(err);
-        setRequests([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    run();
+    fetchRequests();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ✅ show only pending
+  // fallback safety (if API returns extra)
   const pending = useMemo(
     () => requests.filter((r) => (r?.status || "").toLowerCase() === "pending"),
     [requests]
@@ -40,13 +44,29 @@ const DonationRequests = () => {
     <div className="w-full">
       {/* Header */}
       <div className="rounded-2xl bg-base-100/80 backdrop-blur border border-base-300/60 shadow-sm p-5 md:p-6">
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-          Pending Blood Donation Requests
-        </h1>
-        <p className="opacity-70 mt-1">
-          Browse all pending requests and help someone in need.
-        </p>
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+              Pending Blood Donation Requests
+            </h1>
+            <p className="opacity-70 mt-1">
+              Only pending requests are shown here. Click view to see details.
+            </p>
+          </div>
+
+          <button onClick={fetchRequests} className="btn btn-ghost rounded-xl">
+            <FiRefreshCw />
+            Refresh
+          </button>
+        </div>
       </div>
+
+      {/* Error */}
+      {error && (
+        <div className="alert alert-error rounded-2xl mt-6">
+          <span>{error}</span>
+        </div>
+      )}
 
       {/* Loading */}
       {loading && (
@@ -57,12 +77,10 @@ const DonationRequests = () => {
       )}
 
       {/* Empty */}
-      {!loading && pending.length === 0 && (
+      {!loading && pending.length === 0 && !error && (
         <div className="mt-6 rounded-2xl bg-base-100 border border-base-300/60 shadow-sm p-6">
           <h2 className="text-lg font-bold">No pending requests found</h2>
-          <p className="opacity-70 mt-1">
-            Please check back later. New requests will appear here.
-          </p>
+          <p className="opacity-70 mt-1">Please check back later.</p>
         </div>
       )}
 
@@ -74,7 +92,6 @@ const DonationRequests = () => {
               key={r._id}
               className="rounded-2xl bg-base-100/80 backdrop-blur border border-base-300/60 shadow-sm hover:shadow-md transition overflow-hidden"
             >
-              {/* top strip */}
               <div className="h-1 bg-secondary" />
 
               <div className="p-5">
@@ -112,11 +129,8 @@ const DonationRequests = () => {
                 </div>
 
                 <div className="mt-5 flex items-center justify-end">
-                  {/* ✅ details page must be private via PrivateRoute */}
-                  <Link
-                    to={`/donation-requests/${r._id}`}
-                    className="btn btn-secondary rounded-xl"
-                  >
+                  {/* ✅ Details is private: PrivateRoute will redirect if not logged in */}
+                  <Link to={`/donation-requests/${r._id}`} className="btn btn-secondary rounded-xl">
                     <FiEye />
                     View
                   </Link>

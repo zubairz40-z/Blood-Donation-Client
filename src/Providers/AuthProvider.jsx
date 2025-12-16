@@ -6,7 +6,9 @@ import {
   updateProfile,
   signOut,
 } from "firebase/auth";
-import { auth } from "../firebase1/Auth";
+
+// ✅ import directly from firebase.init.js (no wrapper file needed)
+import { auth } from "../firebase1/firebase.init";
 
 export const AuthContext = createContext(null);
 
@@ -23,11 +25,43 @@ const AuthProvider = ({ children }) => {
   const updateUserProfile = (name, photoURL) =>
     updateProfile(auth.currentUser, { displayName: name, photoURL });
 
-  const logOut = () => signOut(auth);
+  // ✅ remove token on logout
+  const logOut = async () => {
+    localStorage.removeItem("access-token");
+    return signOut(auth);
+  };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
+
+      // ✅ if logged in, create server JWT and save it
+      if (currentUser?.email) {
+        try {
+          const firebaseToken = await currentUser.getIdToken();
+
+          const res = await fetch(`${import.meta.env.VITE_API_URL}/jwt`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token: firebaseToken }),
+          });
+
+          const data = await res.json();
+
+          if (res.ok && data?.token) {
+            localStorage.setItem("access-token", data.token);
+          } else {
+            localStorage.removeItem("access-token");
+          }
+        } catch (err) {
+          console.log("JWT store error:", err?.message || err);
+          localStorage.removeItem("access-token");
+        }
+      } else {
+        // ✅ if logged out, remove token
+        localStorage.removeItem("access-token");
+      }
+
       setLoading(false);
     });
 

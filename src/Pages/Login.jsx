@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router";
 import { getIdToken } from "firebase/auth";
 
 import useAuth from "../Hooks/useAuth";
-import { auth } from "../firebase1/Auth";
+import { auth } from "../firebase1/firebase.init"; // ✅ FIXED
 import axiosPublic from "../api/axiosPublic";
 
 import LoginImage from "../assets/Blood donation-pana.png";
@@ -176,7 +176,7 @@ const Login = () => {
                 <button
                   type="button"
                   className="btn btn-outline w-full rounded-2xl border-secondary/30 hover:border-secondary flex items-center justify-center gap-2"
-                  onClick={() => alert("Later: Google sign-in")}
+                  onClick={() => alert("Social login not required")}
                 >
                   <span>Continue with Google</span>
                   <img src={Googleicon} alt="Google" className="w-5 h-5" />

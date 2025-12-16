@@ -2,8 +2,8 @@ import React, { useMemo, useState } from "react";
 import useAuth from "../../Hooks/useAuth";
 import { donationRequestsApi } from "../../api/donationRequests.api";
 
-import districts from "../../data/bd-geo/districts.json";
-import upazilas from "../../data/bd-geo/upazilas.json";
+import districts from "../../Data/bd-geo/districts.json";
+import upazilas from "../../Data/bd-geo/upazilas.json";
 
 const bloodGroups = ["A+","A-","B+","B-","AB+","AB-","O+","O-"];
 

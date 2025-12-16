@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import useAuth from "../../Hooks/useAuth";
 import { usersApi } from "../../api/users.api";
-import StatsCards from "../../Components/Dashboard/StatsCards";
+import StatsCards from "../../Components/DashBoards/StatsCards";
 
 const DashboardHome = () => {
   const { user } = useAuth();

@@ -1,14 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import useAuth from "../../Hooks/useAuth";
 import { donationRequestsApi } from "../../api/donationRequests.api";
-;
+import DonationRequestsTable from "../../Components/DashBoards/DonationRequestsTable";
+import Pagination from "../../Components/DashBoards/Pagination";
+import ConfirmModal from "../../Components/DashBoards/ConfirmModal";
 
-import DonationRequestsTable from '../../Components/DashBoards/DonationRequestsTable';
-import Pagination from '../../Components/DashBoards/Pagination';
-import ConfirmModal from '../../Components/DashBoards/ConfirmModal';
-
-const MyDonationRequests = () => {
+const AllBloodDonationRequests = () => {
   const { user } = useAuth();
+  const role = user?.role || "donor"; // admin | volunteer
 
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
@@ -23,13 +22,7 @@ const MyDonationRequests = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await donationRequestsApi.getMyRequests({
-        email: user?.email,
-        status,
-        page,
-        limit,
-      });
-      // expected: { items: [], total: number }
+      const res = await donationRequestsApi.getAllRequests({ status, page, limit });
       setData(res);
     } catch (e) {
       console.error(e);
@@ -39,10 +32,7 @@ const MyDonationRequests = () => {
     }
   };
 
-  useEffect(() => {
-    if (user?.email) load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.email, status, page]);
+  useEffect(() => { load(); }, [status, page]);
 
   const onStatus = async (id, next) => {
     await donationRequestsApi.updateStatus(id, next);
@@ -59,26 +49,28 @@ const MyDonationRequests = () => {
     <div className="space-y-4">
       <div className="flex items-end justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold">My Donation Requests</h1>
-          <p className="opacity-70 text-sm">Manage all requests you created.</p>
+          <h1 className="text-2xl font-bold">All Blood Donation Requests</h1>
+          <p className="opacity-70 text-sm">
+            {role === "volunteer"
+              ? "You can filter requests and update status only."
+              : "You can manage all requests."}
+          </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <select
-            className="select select-bordered rounded-xl"
-            value={status}
-            onChange={(e) => {
-              setPage(1);
-              setStatus(e.target.value);
-            }}
-          >
-            <option value="">All status</option>
-            <option value="pending">pending</option>
-            <option value="inprogress">inprogress</option>
-            <option value="done">done</option>
-            <option value="canceled">canceled</option>
-          </select>
-        </div>
+        <select
+          className="select select-bordered rounded-xl"
+          value={status}
+          onChange={(e) => {
+            setPage(1);
+            setStatus(e.target.value);
+          }}
+        >
+          <option value="">All status</option>
+          <option value="pending">pending</option>
+          <option value="inprogress">inprogress</option>
+          <option value="done">done</option>
+          <option value="canceled">canceled</option>
+        </select>
       </div>
 
       <div className="rounded-2xl bg-base-100/80 border border-base-300/60 shadow-sm">
@@ -90,14 +82,13 @@ const MyDonationRequests = () => {
         ) : data.items.length === 0 ? (
           <div className="p-6">
             <p className="font-bold">No requests found.</p>
-            <p className="opacity-70">Try changing filters or create a new request.</p>
           </div>
         ) : (
           <div className="p-2">
             <DonationRequestsTable
               rows={data.items}
-              mode="donor"
-              onDelete={setDeleteTarget}
+              mode={role === "volunteer" ? "volunteer" : "admin"}
+              onDelete={role === "admin" ? setDeleteTarget : () => {}}
               onStatus={onStatus}
               onEditRoute="/dashboard/edit-donation-request"
             />
@@ -108,8 +99,9 @@ const MyDonationRequests = () => {
         )}
       </div>
 
+      {/* Admin only delete modal */}
       <ConfirmModal
-        open={!!deleteTarget}
+        open={role === "admin" && !!deleteTarget}
         title="Delete request?"
         message={`This will permanently delete the request for ${deleteTarget?.recipientName || ""}.`}
         onCancel={() => setDeleteTarget(null)}
@@ -120,4 +112,4 @@ const MyDonationRequests = () => {
   );
 };
 
-export default MyDonationRequests;
+export default AllBloodDonationRequests;

@@ -9,15 +9,33 @@ import LoginImage from "../assets/Blood donation-pana.png";
 import Googleicon from "../assets/google.png";
 import Logo from "../Components/Logo/Logo";
 
+// ✅ Put these JSON files in src/data/ (or adjust the paths)
+import districtsRaw from "../Data/bd-geo/districts.json";
+import upazilasRaw from "../Data/bd-geo/upazilas.json";
+
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
-const DISTRICTS = ["Dhaka", "Chattogram", "Rajshahi", "Khulna", "Sylhet"];
-const UPAZILAS_BY_DISTRICT = {
-  Dhaka: ["Dhanmondi", "Mirpur", "Uttara", "Mohammadpur"],
-  Chattogram: ["Pahartali", "Panchlaish", "Kotwali"],
-  Rajshahi: ["Boalia", "Motihar", "Rajpara"],
-  Khulna: ["Sonadanga", "Khalishpur"],
-  Sylhet: ["Beanibazar", "Golapganj"],
+// ✅ Supports either:
+// 1) plain array: [{id, name, ...}, ...]
+// 2) phpMyAdmin export array: [{type:'header'...}, {type:'table', name:'districts', data:[...]}]
+const extractTableData = (raw, tableName) => {
+  if (!raw) return [];
+
+  // plain array of rows
+  if (Array.isArray(raw) && raw.length && raw[0]?.id && raw[0]?.name) return raw;
+
+  // phpmyadmin export array
+  if (Array.isArray(raw)) {
+    const tableObj = raw.find(
+      (x) => x?.type === "table" && String(x?.name).toLowerCase() === tableName
+    );
+    if (tableObj?.data && Array.isArray(tableObj.data)) return tableObj.data;
+  }
+
+  // sometimes exported as { data: [...] }
+  if (raw?.data && Array.isArray(raw.data)) return raw.data;
+
+  return [];
 };
 
 const Register = () => {
@@ -32,15 +50,44 @@ const Register = () => {
     email: "",
     avatar: null,
     bloodGroup: "",
-    district: "",
-    upazila: "",
+    district: "", // storing district name
+    upazila: "", // storing upazila name
     password: "",
     confirmPassword: "",
   });
 
+  // ✅ Normalize JSON tables
+  const districts = useMemo(
+    () => extractTableData(districtsRaw, "districts"),
+    []
+  );
+  const upazilas = useMemo(() => extractTableData(upazilasRaw, "upazilas"), []);
+
+  // ✅ District options from JSON
+  const districtOptions = useMemo(() => {
+    return (districts || [])
+      .map((d) => d?.name)
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b));
+  }, [districts]);
+
+  // ✅ Upazila options filtered by selected district
   const upazilaOptions = useMemo(() => {
-    return form.district ? UPAZILAS_BY_DISTRICT[form.district] || [] : [];
-  }, [form.district]);
+    if (!form.district) return [];
+
+    const selectedDistrict = (districts || []).find(
+      (d) => String(d?.name) === String(form.district)
+    );
+    if (!selectedDistrict?.id) return [];
+
+    const did = String(selectedDistrict.id);
+
+    return (upazilas || [])
+      .filter((u) => String(u?.district_id) === did)
+      .map((u) => u?.name)
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b));
+  }, [form.district, districts, upazilas]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -76,7 +123,7 @@ const Register = () => {
       // 3) Update Firebase profile (name + photo)
       await updateUserProfile(form.name, avatarURL);
 
-      // 4) Save user to server (temporary or DB)
+      // 4) Save user to server ✅ (as you requested)
       const userInfo = {
         name: form.name,
         email: form.email,
@@ -84,9 +131,6 @@ const Register = () => {
         bloodGroup: form.bloodGroup,
         district: form.district,
         upazila: form.upazila,
-        role: "donor",
-        status: "active",
-        createdAt: new Date(),
       };
 
       await axiosPublic.post("/users", userInfo);
@@ -207,12 +251,19 @@ const Register = () => {
                         <option value="" disabled>
                           Select district
                         </option>
-                        {DISTRICTS.map((d) => (
+                        {districtOptions.map((d) => (
                           <option key={d} value={d}>
                             {d}
                           </option>
                         ))}
                       </select>
+
+                      {/* Optional hint if JSON not loaded */}
+                      {districtOptions.length === 0 && (
+                        <p className="mt-1 text-xs text-error">
+                          District data not found. Check your JSON import path.
+                        </p>
+                      )}
                     </div>
 
                     <div className="form-control">
@@ -228,7 +279,9 @@ const Register = () => {
                         disabled={!form.district}
                       >
                         <option value="" disabled>
-                          {form.district ? "Select upazila" : "Select district first"}
+                          {form.district
+                            ? "Select upazila"
+                            : "Select district first"}
                         </option>
                         {upazilaOptions.map((u) => (
                           <option key={u} value={u}>
@@ -311,10 +364,11 @@ const Register = () => {
 
                 <div className="divider my-6">OR</div>
 
+                {/* Social login not required — keeping your button as placeholder */}
                 <button
                   type="button"
                   className="btn btn-outline w-full rounded-2xl border-secondary/30 hover:border-secondary flex items-center justify-center gap-2"
-                  onClick={() => alert("Later: Google sign-in")}
+                  onClick={() => alert("Social login not required")}
                 >
                   <span>Continue with Google</span>
                   <img src={Googleicon} alt="Google" className="w-5 h-5" />
