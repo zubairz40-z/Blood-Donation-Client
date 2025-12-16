@@ -4,19 +4,21 @@ import { RouterProvider } from "react-router";
 import Mainlayoutp from "./../Layouts/MainLayout/MainLayoutp";
 
 import Home from "./../Pages/Home";
-import DonationRequests from "./../Pages/DonationRequests";
+
 import Search from "./../Pages/Search";
 import Login from "./../Pages/Login";
 import Register from "./../Pages/Register";
 import Users from "./../Pages/Users";
-
-
-
-import Profile from "./../Pages/Profile";
-
-import DashboardLayout from './../Pages/DashboardLayout';
+import DashboardHome from './../Pages/Dashboard/DashboardHome';
+import Profile from './../Pages/Dashboard/Profile';
+import DashboardLayout from './../Pages/Dashboard/DashboardLayout';
+import DonationRequests from './../Pages/Dashboard/DonationRequests';
 import PrivateRoute1 from './PrivateRoute1';
-import DashboardHome from './../Pages/DashboardHome';
+import MyDonationRequests from './../Pages/Dashboard/MyDonationRequests';
+
+
+
+
 
 const router = createBrowserRouter([
   {
@@ -41,6 +43,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <DashboardHome /> },
       { path: "profile", element: <Profile /> },
+      { path: "my-donation-requests", element: <MyDonationRequests /> },
      
     ],
   },

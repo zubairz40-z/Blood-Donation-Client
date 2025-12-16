@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { NavLink, Outlet } from "react-router";
-import useAuth from "../Hooks/useAuth";
+import useAuth from "../../Hooks/useAuth";
 import { FiHome, FiUser, FiDollarSign, FiLogOut, FiArrowLeft, FiMenu } from "react-icons/fi";
 
 const DashboardLayout = () => {
