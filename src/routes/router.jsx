@@ -1,5 +1,5 @@
 import { createBrowserRouter } from "react-router";
-import { RouterProvider } from "react-router-dom";
+import { RouterProvider } from "react-router";
 
 import Mainlayoutp from "./../Layouts/MainLayout/MainLayoutp";
 
@@ -10,13 +10,13 @@ import Login from "./../Pages/Login";
 import Register from "./../Pages/Register";
 import Users from "./../Pages/Users";
 
-import DashboardLayout from "../Pages/DashboardLayout"; // ✅ rename/import correctly
-import PrivateRoute1 from "./PrivateRoute1"; // ✅ use the same name you imported
 
-// If these exist, import them too:
-import DashboardHome from "./../Pages/DashboardHome";
+
 import Profile from "./../Pages/Profile";
-import Funding from "./../Pages/Funding";
+
+import DashboardLayout from './../Pages/DashboardLayout';
+import PrivateRoute1 from './PrivateRoute1';
+import DashboardHome from './../Pages/DashboardHome';
 
 const router = createBrowserRouter([
   {
@@ -41,7 +41,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <DashboardHome /> },
       { path: "profile", element: <Profile /> },
-      { path: "funding", element: <Funding /> },
+     
     ],
   },
 ]);
