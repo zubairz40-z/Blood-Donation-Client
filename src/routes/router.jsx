@@ -1,5 +1,4 @@
 import { createBrowserRouter } from "react-router";
-
 import Mainlayoutp from "../Layouts/MainLayout/MainLayoutp";
 
 // Public pages
@@ -9,28 +8,24 @@ import Login from "../Pages/Login";
 import Register from "../Pages/Register";
 import Users from "../Pages/Users";
 import DonationRequests from "../Pages/DonationRequests";
-import DonationRequestDetails from "../Pages/DonationRequestDetail";
+import DonationRequestDetails from "../Pages/DonationRequestDetails";
 
-// Dashboard (private) pages
+// Dashboard pages
 import DashboardLayout from "../Pages/Dashboard/DashboardLayout";
 import DashboardHome from "../Pages/Dashboard/DashboardHome";
 import Profile from "../Pages/Dashboard/Profile";
 import MyDonationRequests from "../Pages/Dashboard/MyDonationRequests";
 import CreateDonationRequest from "../Pages/Dashboard/CreateDonationRequest";
 import AllUsers from "../Pages/Dashboard/AllUsers";
-
-import DonationRequestsPublic from './../Pages/Dashboard/DonationRequestsPublic';
-import AllBloodDonationRequests from './../Pages/Dashboard/AllBLoodDonationRequests';
+import AllBloodDonationRequests from "../Pages/Dashboard/AllBloodDonationRequests";
 
 // Guards
 import PrivateRoute1 from "./PrivateRoute1";
+import RoleRoute from "./RoleRoute";
 
 // Optional
 import ErrorPage from "../Pages/ErrorPage";
 import NotFound from "../Pages/NotFound";
-
-
-
 
 const router = createBrowserRouter([
   {
@@ -40,14 +35,14 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <Home /> },
 
-      // Public
-      { path: "donation-requests", element: <DonationRequestsPublic /> },
+      // ✅ Public
+      { path: "donation-requests", element: <DonationRequests /> },
       { path: "search", element: <Search /> },
       { path: "login", element: <Login /> },
       { path: "register", element: <Register /> },
       { path: "users", element: <Users /> },
 
-      // Private details
+      // ✅ Private details
       {
         path: "donation-requests/:id",
         element: (
@@ -59,6 +54,7 @@ const router = createBrowserRouter([
     ],
   },
 
+  // ✅ Dashboard (Private)
   {
     path: "/dashboard",
     element: (
@@ -70,19 +66,46 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <DashboardHome /> },
 
-      // shared
+      // ✅ shared
       { path: "profile", element: <Profile /> },
 
-      // donor
-      { path: "my-donation-requests", element: <MyDonationRequests /> },
-      { path: "create-donation-request", element: <CreateDonationRequest /> },
+      // ✅ Donor pages (donor + admin)
+      {
+        path: "my-donation-requests",
+        element: (
+          <RoleRoute allow={["donor", "admin"]}>
+            <MyDonationRequests />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: "create-donation-request",
+        element: (
+          <RoleRoute allow={["donor", "admin"]}>
+            <CreateDonationRequest />
+          </RoleRoute>
+        ),
+      },
 
-      // admin / volunteer
-      { path: "all-users", element: <AllUsers /> },
-      { path: "all-blood-donation-request", element: <AllBloodDonationRequests /> },
+      // ✅ Admin only
+      {
+        path: "all-users",
+        element: (
+          <RoleRoute allow={["admin"]}>
+            <AllUsers />
+          </RoleRoute>
+        ),
+      },
 
-      // later:
-      // { path: "funding", element: <Funding /> },
+      // ✅ Admin + Volunteer
+      {
+        path: "all-blood-donation-request",
+        element: (
+          <RoleRoute allow={["admin", "volunteer"]}>
+            <AllBloodDonationRequests />
+          </RoleRoute>
+        ),
+      },
     ],
   },
 

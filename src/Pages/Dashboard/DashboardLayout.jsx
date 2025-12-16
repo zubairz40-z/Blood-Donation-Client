@@ -1,20 +1,22 @@
 import React, { useMemo } from "react";
 import { NavLink, Outlet } from "react-router";
 import useAuth from "../../Hooks/useAuth";
-import { FiHome, FiUser, FiDollarSign, FiLogOut, FiArrowLeft, FiMenu } from "react-icons/fi";
+import useUserRole from "../../Hooks/useUserRole";
+import {
+  FiHome,
+  FiUser,
+  FiDollarSign,
+  FiLogOut,
+  FiArrowLeft,
+  FiMenu,
+  FiUsers,
+  FiDroplet,
+  FiPlusCircle,
+} from "react-icons/fi";
 
 const DashboardLayout = () => {
   const { user, logOut } = useAuth();
-
-  const navItems = useMemo(
-    () => [
-      { to: "/dashboard", label: "Dashboard Home", icon: <FiHome />, end: true },
-      { to: "/dashboard/profile", label: "Profile", icon: <FiUser /> },
-      { to: "/dashboard/funding", label: "Funding", icon: <FiDollarSign /> },
-      { to: "/", label: "Back to Home", icon: <FiArrowLeft /> },
-    ],
-    []
-  );
+  const { role, roleLoading } = useUserRole();
 
   const linkClass = ({ isActive }) =>
     [
@@ -26,6 +28,46 @@ const DashboardLayout = () => {
   const avatarLetter = (user?.displayName?.[0] || user?.email?.[0] || "U").toUpperCase();
   const photoURL = user?.photoURL || user?.photoUrl || user?.avatar;
 
+  const navItems = useMemo(() => {
+    // common for all
+    const common = [
+      { to: "/dashboard", label: "Dashboard Home", icon: <FiHome />, end: true },
+      { to: "/dashboard/profile", label: "Profile", icon: <FiUser /> },
+    ];
+
+    // donor menu
+    const donor = [
+      { to: "/dashboard/my-donation-requests", label: "My Donation Requests", icon: <FiDroplet /> },
+      { to: "/dashboard/create-donation-request", label: "Create Donation Request", icon: <FiPlusCircle /> },
+    ];
+
+    // admin menu
+    const admin = [
+      { to: "/dashboard/all-users", label: "All Users", icon: <FiUsers /> },
+      { to: "/dashboard/all-blood-donation-request", label: "All Blood Requests", icon: <FiDroplet /> },
+      { to: "/dashboard/funding", label: "Funding", icon: <FiDollarSign /> },
+    ];
+
+    // volunteer menu
+    const volunteer = [
+      { to: "/dashboard/all-blood-donation-request", label: "All Blood Requests", icon: <FiDroplet /> },
+    ];
+
+    const footer = [{ to: "/", label: "Back to Home", icon: <FiArrowLeft /> }];
+
+    if (role === "admin") return [...common, ...admin, ...footer];
+    if (role === "volunteer") return [...common, ...volunteer, ...footer];
+    return [...common, ...donor, ...footer]; // default donor
+  }, [role]);
+
+  if (roleLoading) {
+    return (
+      <div className="min-h-screen grid place-items-center">
+        <span className="loading loading-spinner loading-lg" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-base-200 to-base-100">
       <div className="drawer lg:drawer-open">
@@ -34,7 +76,6 @@ const DashboardLayout = () => {
         {/* Content */}
         <div className="drawer-content">
           {/* ✅ No navbar on top */}
-          {/* Mobile floating button to open sidebar */}
           <label
             htmlFor="dashboard-drawer"
             className="btn btn-secondary btn-circle fixed left-4 bottom-4 z-30 lg:hidden shadow-lg"
@@ -44,7 +85,6 @@ const DashboardLayout = () => {
           </label>
 
           <main className="p-4 lg:p-6 w-full">
-            {/* ✅ Full-width (no max-w container) */}
             <div className="rounded-2xl bg-base-100/70 backdrop-blur border border-base-300/60 shadow-sm">
               <div className="p-4 lg:p-6">
                 <Outlet />
@@ -83,6 +123,11 @@ const DashboardLayout = () => {
                       {user?.displayName || "Welcome back"}
                     </h2>
                     <p className="text-xs opacity-70 truncate">{user?.email}</p>
+
+                    {/* ✅ show role badge */}
+                    <div className="mt-2">
+                      <span className="badge badge-secondary badge-outline capitalize">{role}</span>
+                    </div>
                   </div>
                 </div>
               </div>
