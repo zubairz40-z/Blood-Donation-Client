@@ -7,7 +7,7 @@ const RoleRoute = ({ allow = [], children }) => {
   const { role, roleLoading } = useUserRole();
   const location = useLocation();
 
-  if (loading || roleLoading) {
+  if (loading || (user && !jwtReady) || roleLoading) {
     return (
       <div className="min-h-[60vh] grid place-items-center">
         <span className="loading loading-spinner loading-lg" />
@@ -17,11 +17,9 @@ const RoleRoute = ({ allow = [], children }) => {
 
   if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
 
-  if (!jwtReady) return <Navigate to="/login" state={{ from: location }} replace />;
-
-  if (!allow.length) return children;
-
-  if (!allow.includes(role)) return <Navigate to="/dashboard" replace />;
+  if (allow.length && !allow.includes(role)) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   return children;
 };

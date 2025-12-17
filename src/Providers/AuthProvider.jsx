@@ -13,19 +13,42 @@ export const AuthContext = createContext(null);
 const API = import.meta.env.VITE_API_URL;
 
 async function exchangeJwt(firebaseUser) {
-  const firebaseToken = await firebaseUser.getIdToken();
+  // 1) try Firebase token flow first
+  try {
+    const firebaseToken = await firebaseUser.getIdToken();
 
-  const jwtRes = await fetch(`${API}/jwt`, {
+    const jwtRes = await fetch(`${API}/jwt`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: firebaseToken }),
+    });
+
+    if (jwtRes.ok) {
+      const data = await jwtRes.json();
+      if (data?.token) {
+        localStorage.setItem("access-token", data.token);
+        return true;
+      }
+    }
+  } catch (e) {
+    // ignore -> fallback below
+  }
+
+  // 2) fallback email flow (local dev)
+  const email = firebaseUser?.email;
+  if (!email) return false;
+
+  const jwtRes2 = await fetch(`${API}/jwt`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ token: firebaseToken }),
+    body: JSON.stringify({ email }),
   });
 
-  if (!jwtRes.ok) return false;
+  if (!jwtRes2.ok) return false;
 
-  const data = await jwtRes.json();
-  if (data?.token) {
-    localStorage.setItem("access-token", data.token);
+  const data2 = await jwtRes2.json();
+  if (data2?.token) {
+    localStorage.setItem("access-token", data2.token);
     return true;
   }
 

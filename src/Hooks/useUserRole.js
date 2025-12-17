@@ -23,12 +23,10 @@ export default function useUserRole() {
         return;
       }
 
-      // wait until JWT is ready
+      // ✅ keep loading until jwt is ready
       if (!jwtReady) {
         if (!alive) return;
-        setDbUser(null);
-        setRole("");
-        setRoleLoading(false);
+        setRoleLoading(true);
         return;
       }
 
