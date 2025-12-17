@@ -2,6 +2,7 @@ import React from "react";
 import { FiPhoneCall, FiCheckCircle } from "react-icons/fi";
 import { motion } from "framer-motion";
 import StatsBar from "../StatesBar/StatsBar";
+import { NavLink } from 'react-router';
 
 const FeaturedSection = () => {
   const leftVariant = {
@@ -91,9 +92,12 @@ const FeaturedSection = () => {
                   </li>
                 </ul>
 
-                <button className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-secondary px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 active:scale-[0.98]">
-                  Discover more
-                </button>
+            <NavLink
+  to="/login"
+  className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-secondary px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 active:scale-[0.98]"
+>
+  Discover more
+</NavLink>
               </div>
             </div>
           </motion.div>

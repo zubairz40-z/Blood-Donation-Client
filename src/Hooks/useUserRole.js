@@ -3,7 +3,7 @@ import axiosSecure from "../api/axiosSecure";
 import useAuth from "./useAuth";
 
 export default function useUserRole() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, jwtReady } = useAuth();
 
   const [dbUser, setDbUser] = useState(null);
   const [role, setRole] = useState("");
@@ -11,9 +11,8 @@ export default function useUserRole() {
 
   useEffect(() => {
     let alive = true;
-    let retryTimer = null;
 
-    async function loadRole() {
+    async function run() {
       if (authLoading) return;
 
       if (!user?.email) {
@@ -24,25 +23,23 @@ export default function useUserRole() {
         return;
       }
 
-      const token = localStorage.getItem("access-token");
-
-      // ✅ token sometimes not ready yet (onAuthStateChanged timing)
-      if (!token) {
-        retryTimer = setTimeout(loadRole, 400);
+      // wait until JWT is ready
+      if (!jwtReady) {
+        if (!alive) return;
+        setDbUser(null);
+        setRole("");
+        setRoleLoading(false);
         return;
       }
 
       try {
         setRoleLoading(true);
         const { data } = await axiosSecure.get("/users/me");
-
         if (!alive) return;
 
         setDbUser(data || null);
         setRole(data?.role || "donor");
       } catch (e) {
-        console.log("useUserRole /users/me failed:", e?.response?.data || e?.message || e);
-
         if (!alive) return;
         setDbUser(null);
         setRole("");
@@ -52,13 +49,11 @@ export default function useUserRole() {
       }
     }
 
-    loadRole();
-
+    run();
     return () => {
       alive = false;
-      if (retryTimer) clearTimeout(retryTimer);
     };
-  }, [user?.email, authLoading]);
+  }, [user?.email, authLoading, jwtReady]);
 
   return { dbUser, role, roleLoading };
 }

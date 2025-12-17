@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
-import axiosPublic from "../api/axiosSecure";
+import axiosSecure from "../api/axiosSecure";
 
 const Users = () => {
   const [users, setUsers] = useState([]);
 
   useEffect(() => {
-    axiosPublic.get("/users").then((res) => setUsers(res.data));
+    axiosSecure
+      .get("/admin/users")
+      .then((res) => setUsers(Array.isArray(res.data) ? res.data : []))
+      .catch(() => setUsers([]));
   }, []);
 
   return (
@@ -30,20 +33,21 @@ const Users = () => {
 
           <tbody>
             {users.map((u, idx) => (
-              <tr key={u._id}>
+              <tr key={u._id || u.email || idx}>
                 <td>{idx + 1}</td>
                 <td>
                   <img
-                    src={u.avatar}
+                    src={u.avatar || ""}
                     alt="avatar"
-                    className="w-10 h-10 rounded-full"
+                    className="w-10 h-10 rounded-full object-cover bg-base-200"
+                    referrerPolicy="no-referrer"
                   />
                 </td>
                 <td>{u.name}</td>
                 <td>{u.email}</td>
-                <td>{u.bloodGroup}</td>
-                <td>{u.district}</td>
-                <td>{u.upazila}</td>
+                <td>{u.bloodGroup || "—"}</td>
+                <td>{u.district || "—"}</td>
+                <td>{u.upazila || "—"}</td>
                 <td>{u.role}</td>
                 <td>{u.status}</td>
               </tr>

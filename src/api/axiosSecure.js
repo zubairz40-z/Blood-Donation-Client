@@ -5,17 +5,15 @@ const axiosSecure = axios.create({
   timeout: 15000,
 });
 
-// ✅ attach JWT from localStorage
 axiosSecure.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("access-token");
-    if (token) config.headers.authorization = `Bearer ${token}`;
+    if (token) config.headers.Authorization = `Bearer ${token}`; // ✅ capital A
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// ✅ if 401 happens, clear token so UI doesn't hang forever
 axiosSecure.interceptors.response.use(
   (res) => res,
   (error) => {

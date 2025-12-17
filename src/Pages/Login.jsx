@@ -31,21 +31,11 @@ const Login = () => {
     try {
       setSubmitting(true);
 
-      // 1) Firebase login
+      // ✅ 1) Firebase login + JWT exchange happens inside AuthProvider.signIn()
       const result = await signIn(email, password);
       const fbUser = result.user;
 
-      // 2) Firebase ID token
-      const firebaseToken = await fbUser.getIdToken(true);
-
-      // 3) Exchange Firebase token → backend JWT
-      const jwtRes = await axiosPublic.post("/jwt", { token: firebaseToken });
-      if (!jwtRes?.data?.token) throw new Error("JWT failed");
-
-      // 4) Store backend JWT
-      localStorage.setItem("access-token", jwtRes.data.token);
-
-      // 5) Save/Update user in MongoDB
+      // ✅ 2) Save/Update user in MongoDB (JWT is already in localStorage via AuthProvider)
       await axiosPublic.post("/users", {
         name: fbUser.displayName || "User",
         email: fbUser.email,

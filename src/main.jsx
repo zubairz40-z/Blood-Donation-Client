@@ -7,10 +7,12 @@ import AuthProvider from "./Providers/AuthProvider";
 import { Toaster } from "react-hot-toast";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
-  <React.StrictMode>
-    <AuthProvider>
-      <Toaster position="top-right" reverseOrder={false} />
-      <RouterProvider router={router} />
-    </AuthProvider>
-  </React.StrictMode>
+  // ✅ StrictMode runs effects twice in dev and can cause JWT/token race + loading loops
+  // <React.StrictMode>
+  <AuthProvider>
+    <Toaster position="top-right" reverseOrder={false} />
+    <RouterProvider router={router} />
+  </AuthProvider>
+  // </React.StrictMode>
 );
+

@@ -8,12 +8,8 @@ export async function apiFetch(path, options = {}) {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 
-  const res = await fetch(url, {
-    ...options,
-    headers,
-  });
+  const res = await fetch(url, { ...options, headers });
 
-  // ✅ token missing/expired -> clean + force re-login behavior
   if (res.status === 401) {
     localStorage.removeItem("access-token");
     throw new Error("Session expired. Please login again.");

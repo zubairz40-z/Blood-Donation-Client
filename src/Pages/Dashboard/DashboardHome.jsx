@@ -31,6 +31,8 @@ const DashboardHome = () => {
     return "Donor";
   }, [role]);
 
+  const isAdminOrVolunteer = role === "admin" || role === "volunteer";
+
   /* ---------------- Donor recent requests ---------------- */
   useEffect(() => {
     if (roleLoading) return;
@@ -48,7 +50,7 @@ const DashboardHome = () => {
       } catch (e) {
         console.error(e);
         setRecent([]);
-        toast.error("Failed to load recent requests");
+        toast.error(e?.message || "Failed to load recent requests");
       } finally {
         setRecentLoading(false);
       }
@@ -62,7 +64,7 @@ const DashboardHome = () => {
     if (roleLoading) return;
 
     const loadStats = async () => {
-      if (role !== "admin" && role !== "volunteer") {
+      if (!isAdminOrVolunteer) {
         setStats(null);
         return;
       }
@@ -70,18 +72,21 @@ const DashboardHome = () => {
       setStatsLoading(true);
       try {
         const res = await usersApi.getAdminStats();
-        setStats(res);
+        setStats(res || null);
       } catch (e) {
         console.error(e);
         setStats(null);
-        toast.error("Failed to load stats");
+
+        // show real server message if possible
+        const msg = e?.message || e?.response?.data?.message || "Failed to load stats";
+        toast.error(msg);
       } finally {
         setStatsLoading(false);
       }
     };
 
     loadStats();
-  }, [role, roleLoading]);
+  }, [isAdminOrVolunteer, roleLoading]);
 
   /* ---------------- Donor status update ---------------- */
   const onSetStatus = async (id, nextStatus) => {
@@ -89,14 +94,12 @@ const DashboardHome = () => {
       await toast.promise(donationRequestsApi.updateStatusDonor(id, nextStatus), {
         loading: "Updating status...",
         success: "Status updated ✅",
-        error: (e) =>
-          e?.response?.data?.message || e?.message || "Failed to update status",
+        error: (e) => e?.message || "Failed to update status",
       });
 
       const res = await donationRequestsApi.getMyRecent();
       setRecent(Array.isArray(res) ? res : []);
     } catch (e) {
-      // toast.promise already shows error; just keep UI stable
       console.error(e);
     }
   };
@@ -109,8 +112,7 @@ const DashboardHome = () => {
       await toast.promise(donationRequestsApi.deleteRequestDonor(deleteTarget._id), {
         loading: "Deleting request...",
         success: "Request deleted ✅",
-        error: (e) =>
-          e?.response?.data?.message || e?.message || "Failed to delete request",
+        error: (e) => e?.message || "Failed to delete request",
       });
 
       setDeleteTarget(null);
@@ -133,7 +135,7 @@ const DashboardHome = () => {
 
   return (
     <div className="space-y-5">
-      {/* ✅ Modern hero/banner */}
+      {/* Banner */}
       <div className="relative overflow-hidden rounded-3xl border border-base-300/60 shadow-sm">
         <div className="absolute inset-0">
           <img
@@ -166,16 +168,13 @@ const DashboardHome = () => {
                 >
                   Create Request
                 </Link>
-                <Link
-                  to="/dashboard/my-donation-requests"
-                  className="btn btn-ghost rounded-2xl"
-                >
+                <Link to="/dashboard/my-donation-requests" className="btn btn-ghost rounded-2xl">
                   My Requests
                 </Link>
               </>
             )}
 
-            {(role === "admin" || role === "volunteer") && (
+            {isAdminOrVolunteer && (
               <Link
                 to="/dashboard/all-blood-donation-request"
                 className="btn btn-outline rounded-2xl"
@@ -188,7 +187,7 @@ const DashboardHome = () => {
       </div>
 
       {/* Admin / Volunteer stats */}
-      {(role === "admin" || role === "volunteer") && (
+      {isAdminOrVolunteer && (
         <div className="rounded-3xl bg-base-100/80 border border-base-300/60 shadow-sm p-5">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <h2 className="text-lg font-bold">Statistics Overview</h2>
@@ -206,8 +205,15 @@ const DashboardHome = () => {
                 <div className="skeleton h-20 w-full rounded-2xl" />
                 <div className="skeleton h-20 w-full rounded-2xl" />
               </div>
-            ) : (
+            ) : stats ? (
               <StatsCards stats={stats} />
+            ) : (
+              <div className="rounded-2xl border border-base-300/60 bg-base-200/30 p-6 text-center">
+                <p className="font-semibold">Stats unavailable</p>
+                <p className="text-sm opacity-70 mt-1">
+                  If you are not admin/volunteer, set your role in MongoDB and login again.
+                </p>
+              </div>
             )}
           </div>
         </div>
@@ -219,10 +225,7 @@ const DashboardHome = () => {
           <div className="flex items-center justify-between flex-wrap gap-3">
             <h2 className="text-lg font-bold">My Recent Donation Requests</h2>
 
-            <Link
-              to="/dashboard/my-donation-requests"
-              className="btn btn-sm btn-secondary rounded-xl"
-            >
+            <Link to="/dashboard/my-donation-requests" className="btn btn-sm btn-secondary rounded-xl">
               View my all request
             </Link>
           </div>
@@ -235,13 +238,8 @@ const DashboardHome = () => {
           ) : recent.length === 0 ? (
             <div className="mt-4 rounded-2xl border border-base-300/60 bg-base-200/30 p-6 text-center">
               <p className="font-bold">No requests yet</p>
-              <p className="text-sm opacity-70 mt-1">
-                Create your first request to get started.
-              </p>
-              <Link
-                to="/dashboard/create-donation-request"
-                className="btn btn-secondary rounded-2xl mt-4"
-              >
+              <p className="text-sm opacity-70 mt-1">Create your first request to get started.</p>
+              <Link to="/dashboard/create-donation-request" className="btn btn-secondary rounded-2xl mt-4">
                 Create Donation Request
               </Link>
             </div>
@@ -263,9 +261,7 @@ const DashboardHome = () => {
       <ConfirmModal
         open={!!deleteTarget}
         title="Delete donation request?"
-        message={`This will permanently delete the request for ${
-          deleteTarget?.recipientName || ""
-        }.`}
+        message={`This will permanently delete the request for ${deleteTarget?.recipientName || ""}.`}
         onCancel={() => setDeleteTarget(null)}
         onConfirm={onConfirmDelete}
         confirmText="Confirm Delete"
