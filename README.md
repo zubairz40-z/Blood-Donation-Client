@@ -6,7 +6,7 @@
 A MERN Stack blood donation platform that connects blood donors with people who need blood. Users can create blood donation requests, search donors by location & blood group, manage requests from dashboards, and optionally donate funds to support the organization.
 
 ## 🔗 Live Website
-- Live URL: 
+- Live URL: https://blood-drop-b7711.web.app
 ## 🎯 Purpose
 The goal of this project is to build a user-friendly Blood Donation system with role-based dashboards (Admin, Donor, Volunteer), secured routes using JWT/Firebase Auth, and a smooth experience for searching donors and managing donation requests.
 

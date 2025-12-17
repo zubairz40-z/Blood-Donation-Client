@@ -1,31 +1,38 @@
-const BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/;$/, "");
+const BASE_URL = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/;$/, "");
 
 export async function apiFetch(path, options = {}) {
   const token = localStorage.getItem("access-token");
 
   const headers = {
+    "Content-Type": "application/json",
     ...(options.headers || {}),
   };
 
-  // Add JSON header only if body exists and Content-Type not already set
-  const hasBody = options.body !== undefined && options.body !== null;
-  if (hasBody && !headers["Content-Type"]) {
-    headers["Content-Type"] = "application/json";
+  if (token) headers.authorization = `Bearer ${token}`; // ✅ attach token
+
+  const res = await fetch(`${BASE_URL}${path}`, {
+    ...options,
+    headers,
+  });
+
+  // try to parse json safely
+  let data = null;
+  const text = await res.text();
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = text || null;
   }
 
-  if (token) headers.Authorization = `Bearer ${token}`;
-
-  const res = await fetch(`${BASE}${path}`, { ...options, headers });
-
-  const ct = res.headers.get("content-type") || "";
-  let data;
-
-  if (ct.includes("application/json")) data = await res.json();
-  else data = await res.text();
-
   if (!res.ok) {
-    const msg = data?.message || data || "Request failed";
-    throw new Error(msg);
+    const message =
+      (data && data.message) ||
+      `Request failed (${res.status})`;
+
+    const err = new Error(message);
+    err.status = res.status;
+    err.data = data;
+    throw err;
   }
 
   return data;

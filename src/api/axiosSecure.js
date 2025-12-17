@@ -1,3 +1,4 @@
+
 import axios from "axios";
 
 const axiosSecure = axios.create({
@@ -8,7 +9,7 @@ const axiosSecure = axios.create({
 axiosSecure.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("access-token");
-    if (token) config.headers.Authorization = `Bearer ${token}`;
+    if (token) config.headers.authorization = `Bearer ${token}`; // ✅ lowercase
     return config;
   },
   (error) => Promise.reject(error)
