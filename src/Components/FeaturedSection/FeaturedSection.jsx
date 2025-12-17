@@ -93,7 +93,7 @@ const FeaturedSection = () => {
                 </ul>
 
             <NavLink
-  to="/login"
+  to="/dashboard"
   className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-secondary px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 active:scale-[0.98]"
 >
   Discover more
