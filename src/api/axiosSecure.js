@@ -2,35 +2,26 @@ import axios from "axios";
 
 const axiosSecure = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
+  timeout: 15000,
 });
 
-// ✅ attach token
+// ✅ attach JWT from localStorage
 axiosSecure.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("access-token");
-    config.headers = config.headers || {}; // ✅ safety
-
-    if (token) {
-      config.headers.authorization = `Bearer ${token}`;
-    }
-
+    if (token) config.headers.authorization = `Bearer ${token}`;
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// ✅ optional: handle auth errors globally
+// ✅ if 401 happens, clear token so UI doesn't hang forever
 axiosSecure.interceptors.response.use(
   (res) => res,
   (error) => {
-    const status = error?.response?.status;
-
-    if (status === 401 || status === 403) {
+    if (error?.response?.status === 401) {
       localStorage.removeItem("access-token");
-      // if you want auto redirect:
-      // window.location.href = "/login";
     }
-
     return Promise.reject(error);
   }
 );

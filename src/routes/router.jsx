@@ -26,6 +26,7 @@ import RoleRoute from "./RoleRoute";
 
 import ErrorPage from "../Pages/ErrorPage";
 import NotFound from "../Pages/NotFound";
+import BecomeDonor from './../Pages/BecomeDoner';
 
 const router = createBrowserRouter([
   {
@@ -115,7 +116,13 @@ const router = createBrowserRouter([
             <Funding />
           </RoleRoute>
         ),
-      },
+      },{
+        path: "become-donor",
+        element: (
+          <RoleRoute allow={["donor", "admin", "volunteer"]}>
+            <BecomeDonor />
+          </RoleRoute>
+        ),}
     ],
   },
 

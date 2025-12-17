@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router";
+import { toast } from "react-hot-toast";
 
 import useAuth from "../Hooks/useAuth";
-import axiosPublic from "../api/axiosPublic"; // ✅ FIXED (was axiosSecure)
+import axiosPublic from "../api/axiosPublic";
 import uploadToImgbb from "../utils/uploadToImgbb";
 
 import LoginImage from "../assets/Blood donation-pana.png";
@@ -26,7 +27,6 @@ const extractTableData = (raw, tableName) => {
   }
 
   if (raw?.data && Array.isArray(raw.data)) return raw.data;
-
   return [];
 };
 
@@ -36,6 +36,7 @@ const Register = () => {
 
   const [showPass, setShowPass] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const [form, setForm] = useState({
     name: "",
@@ -93,42 +94,62 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return;
 
-    if (form.password !== form.confirmPassword) {
-      alert("Password and Confirm Password do not match.");
+    if (!form.avatar) {
+      toast.error("Please select an avatar image.");
       return;
     }
 
+    if (form.password.length < 6) {
+      toast.error("Password must be at least 6 characters.");
+      return;
+    }
+
+    if (form.password !== form.confirmPassword) {
+      toast.error("Password and Confirm Password do not match.");
+      return;
+    }
+
+    const t = toast.loading("Creating account...");
+
     try {
-      // ✅ 1) Firebase create user
-      const result = await createUser(form.email, form.password);
+      setSubmitting(true);
+
+      // 1) Firebase create
+      const result = await createUser(form.email.trim(), form.password);
       const fbUser = result.user;
 
-      // ✅ 2) Upload avatar
+      // 2) Upload avatar to imgBB
       const avatarURL = await uploadToImgbb(form.avatar);
 
-      // ✅ 3) Update Firebase profile
-      await updateUserProfile(form.name, avatarURL);
+      // 3) Update Firebase profile
+      await updateUserProfile(form.name.trim(), avatarURL);
 
-      // ✅ 4) Get backend JWT first + store it
+      // 4) Get firebase token → backend JWT
       const firebaseToken = await fbUser.getIdToken(true);
       const jwtRes = await axiosPublic.post("/jwt", { token: firebaseToken });
+
+      if (!jwtRes?.data?.token) throw new Error("JWT failed");
       localStorage.setItem("access-token", jwtRes.data.token);
 
-      // ✅ 5) Save user to MongoDB (so /users/me works)
+      // 5) Save user to MongoDB
       await axiosPublic.post("/users", {
-        name: form.name,
-        email: form.email,
+        name: form.name.trim(),
+        email: form.email.trim(),
         avatar: avatarURL,
         bloodGroup: form.bloodGroup,
         district: form.district,
         upazila: form.upazila,
       });
 
+      toast.success("Account created ✅", { id: t });
       navigate("/dashboard");
     } catch (err) {
       console.log("Register error:", err?.response?.data || err?.message || err);
-      alert(err?.response?.data?.message || err?.message || "Register failed");
+      toast.error(err?.response?.data?.message || err?.message || "Register failed", { id: t });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -136,6 +157,7 @@ const Register = () => {
     <div className="min-h-[calc(100vh-80px)] flex items-center py-10">
       <div className="max-w-7xl mx-auto w-full px-4">
         <div className="grid grid-cols-1 lg:grid-cols-2 items-stretch overflow-hidden rounded-3xl border border-base-200 bg-base-100 shadow-xl">
+          {/* Left */}
           <div className="relative">
             <div className="hidden lg:block absolute top-0 right-0 h-full w-px bg-base-200" />
 
@@ -185,7 +207,7 @@ const Register = () => {
                     <label className="label">
                       <span className="label-text">Avatar</span>
                       <span className="label-text-alt text-base-content/60">
-                        (will upload to imgBB)
+                        (uploads to imgBB)
                       </span>
                     </label>
                     <input
@@ -320,8 +342,9 @@ const Register = () => {
                   <button
                     className="btn w-full rounded-2xl bg-secondary text-secondary-content hover:bg-secondary/90 border-0"
                     type="submit"
+                    disabled={submitting}
                   >
-                    Register
+                    {submitting ? "Registering..." : "Register"}
                   </button>
 
                   <p className="text-sm text-center text-base-content/70">
@@ -337,7 +360,7 @@ const Register = () => {
                 <button
                   type="button"
                   className="btn btn-outline w-full rounded-2xl border-secondary/30 hover:border-secondary flex items-center justify-center gap-2"
-                  onClick={() => alert("Social login not required")}
+                  onClick={() => toast("Social login not required 🙂")}
                 >
                   <span>Continue with Google</span>
                   <img src={Googleicon} alt="Google" className="w-5 h-5" />
@@ -350,6 +373,7 @@ const Register = () => {
             </div>
           </div>
 
+          {/* Right */}
           <div className="relative bg-secondary/10 overflow-hidden">
             <div className="pointer-events-none absolute -top-20 -left-20 h-60 w-60 rounded-full bg-secondary/20 blur-3xl" />
             <div className="pointer-events-none absolute -bottom-20 -right-20 h-60 w-60 rounded-full bg-secondary/20 blur-3xl" />

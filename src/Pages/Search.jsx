@@ -6,20 +6,28 @@ import upazilasRaw from "../Data/bd-geo/upazilas.json";
 
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
-const extractTableData = (raw, tableName) => {
+// robust table extraction (works with {tables:[{name,type,data}]} or direct arrays)
+const toArray = (raw) => {
   if (!raw) return [];
-  if (Array.isArray(raw) && raw.length && raw[0]?.id && raw[0]?.name) return raw;
-
-  if (Array.isArray(raw)) {
-    const tableObj = raw.find(
-      (x) => x?.type === "table" && String(x?.name).toLowerCase() === tableName
-    );
-    if (tableObj?.data && Array.isArray(tableObj.data)) return tableObj.data;
-  }
-
-  if (raw?.data && Array.isArray(raw.data)) return raw.data;
-
+  if (Array.isArray(raw)) return raw;
+  if (Array.isArray(raw.data)) return raw.data;
+  if (Array.isArray(raw.tables)) return raw.tables;
+  if (Array.isArray(raw.districts)) return raw.districts;
+  if (Array.isArray(raw.upazilas)) return raw.upazilas;
   return [];
+};
+
+const extractTableData = (raw, tableName) => {
+  const arr = toArray(raw);
+  // if already like [{id,name}]
+  if (Array.isArray(arr) && arr.length && arr[0]?.id && (arr[0]?.name || arr[0]?.en_name)) return arr;
+
+  const tableObj = arr.find(
+    (x) => x?.type === "table" && String(x?.name || "").toLowerCase() === tableName
+  );
+  if (Array.isArray(tableObj?.data)) return tableObj.data;
+
+  return arr;
 };
 
 const Search = () => {
@@ -28,7 +36,7 @@ const Search = () => {
 
   const districtOptions = useMemo(() => {
     return (districts || [])
-      .map((d) => d?.name)
+      .map((d) => String(d?.name ?? d?.district ?? d?.district_name ?? d?.en_name ?? "").trim())
       .filter(Boolean)
       .sort((a, b) => a.localeCompare(b));
   }, [districts]);
@@ -39,23 +47,32 @@ const Search = () => {
     upazila: "",
   });
 
-  const upazilaOptions = useMemo(() => {
-    if (!form.district) return [];
-    const selectedDistrict = (districts || []).find((d) => String(d?.name) === String(form.district));
-    if (!selectedDistrict?.id) return [];
-    const did = String(selectedDistrict.id);
-
-    return (upazilas || [])
-      .filter((u) => String(u?.district_id) === did)
-      .map((u) => u?.name)
-      .filter(Boolean)
-      .sort((a, b) => a.localeCompare(b));
-  }, [form.district, districts, upazilas]);
-
-  const [searched, setSearched] = useState(false); // ✅ default: no donor list
+  const [searched, setSearched] = useState(false);
   const [loading, setLoading] = useState(false);
   const [donors, setDonors] = useState([]);
   const [error, setError] = useState("");
+
+  const selectedDistrictId = useMemo(() => {
+    if (!form.district) return "";
+    const d = (districts || []).find(
+      (x) =>
+        String(x?.name ?? x?.district ?? x?.district_name ?? x?.en_name ?? "").trim() ===
+        String(form.district).trim()
+    );
+    return d?.id != null ? String(d.id).trim() : "";
+  }, [form.district, districts]);
+
+  const upazilaOptions = useMemo(() => {
+    if (!selectedDistrictId) return [];
+    return (upazilas || [])
+      .filter((u) => {
+        const did = String(u?.district_id ?? u?.districtId ?? u?.did ?? "").trim();
+        return did && did === selectedDistrictId;
+      })
+      .map((u) => String(u?.name ?? u?.upazila ?? u?.upazila_name ?? u?.en_name ?? "").trim())
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b));
+  }, [selectedDistrictId, upazilas]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -71,15 +88,23 @@ const Search = () => {
   const onSearch = async (e) => {
     e.preventDefault();
     setError("");
-    setLoading(true);
     setSearched(true);
 
+    // optional UX: prevent empty search
+    if (!form.bloodGroup && !form.district && !form.upazila) {
+      setDonors([]);
+      setError("Please select at least one filter (blood group / district / upazila).");
+      return;
+    }
+
+    setLoading(true);
     try {
       const params = {};
       if (form.bloodGroup) params.bloodGroup = form.bloodGroup;
       if (form.district) params.district = form.district;
       if (form.upazila) params.upazila = form.upazila;
 
+      // API should only return active donors (role=donor, status=active)
       const res = await axiosPublic.get("/donors", { params });
       setDonors(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
@@ -94,7 +119,7 @@ const Search = () => {
     setForm({ bloodGroup: "", district: "", upazila: "" });
     setDonors([]);
     setError("");
-    setSearched(false); // ✅ back to initial state (no list)
+    setSearched(false);
   };
 
   return (
@@ -115,11 +140,8 @@ const Search = () => {
               value={form.bloodGroup}
               onChange={handleChange}
               className="select select-bordered rounded-2xl w-full"
-              required
             >
-              <option value="" disabled>
-                Select blood group
-              </option>
+              <option value="">All blood groups</option>
               {BLOOD_GROUPS.map((bg) => (
                 <option key={bg} value={bg}>
                   {bg}
@@ -137,11 +159,8 @@ const Search = () => {
               value={form.district}
               onChange={handleChange}
               className="select select-bordered rounded-2xl w-full"
-              required
             >
-              <option value="" disabled>
-                Select district
-              </option>
+              <option value="">All districts</option>
               {districtOptions.map((d) => (
                 <option key={d} value={d}>
                   {d}
@@ -159,11 +178,10 @@ const Search = () => {
               value={form.upazila}
               onChange={handleChange}
               className="select select-bordered rounded-2xl w-full"
-              required
               disabled={!form.district}
             >
-              <option value="" disabled>
-                {form.district ? "Select upazila" : "Select district first"}
+              <option value="">
+                {form.district ? "All upazilas" : "Select district first"}
               </option>
               {upazilaOptions.map((u) => (
                 <option key={u} value={u}>
@@ -201,7 +219,7 @@ const Search = () => {
         ) : null}
       </div>
 
-      {/* ✅ Results: show only after searching */}
+      {/* Results: show only after searching */}
       {searched && (
         <div className="mt-6">
           <div className="flex items-center justify-between flex-wrap gap-2">
@@ -220,47 +238,44 @@ const Search = () => {
           <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {donors.map((d) => (
               <div
-                key={d._id || d.email}
+                key={d?._id || `${d?.email || "donor"}-${d?.bloodGroup || "bg"}`}
                 className="rounded-3xl bg-base-100 border border-base-200 shadow-sm p-5"
               >
                 <div className="flex items-center gap-3">
                   <div className="avatar">
                     <div className="w-12 rounded-2xl overflow-hidden bg-base-200">
-                      {d.avatar ? (
-                        <img src={d.avatar} alt={d.name} referrerPolicy="no-referrer" />
+                      {d?.avatar ? (
+                        <img src={d.avatar} alt={d?.name || "Donor"} referrerPolicy="no-referrer" />
                       ) : (
                         <div className="w-full h-full grid place-items-center font-bold opacity-60">
-                          {(d.name?.[0] || "D").toUpperCase()}
+                          {(d?.name?.[0] || "D").toUpperCase()}
                         </div>
                       )}
                     </div>
                   </div>
 
                   <div className="min-w-0">
-                    <p className="font-bold truncate">{d.name || "Donor"}</p>
-                    <p className="text-xs opacity-70 truncate">{d.email}</p>
+                    <p className="font-bold truncate">{d?.name || "Donor"}</p>
+                    <p className="text-xs opacity-70 truncate">
+                      {d?.district || "—"}, {d?.upazila || "—"}
+                    </p>
                   </div>
 
                   <div className="ml-auto">
                     <span className="badge badge-secondary badge-outline font-semibold">
-                      {d.bloodGroup}
+                      {d?.bloodGroup || "—"}
                     </span>
                   </div>
                 </div>
 
-                <div className="mt-4 text-sm opacity-80">
-                  <p>
-                    <b>District:</b> {d.district || "—"}
-                  </p>
-                  <p>
-                    <b>Upazila:</b> {d.upazila || "—"}
-                  </p>
-                </div>
-
                 <div className="mt-4">
+                  {/* privacy: keep email hidden, but allow contact */}
                   <a
                     className="btn btn-outline rounded-2xl w-full"
-                    href={`mailto:${d.email}`}
+                    href={d?.email ? `mailto:${d.email}` : "#"}
+                    onClick={(e) => {
+                      if (!d?.email) e.preventDefault();
+                    }}
                   >
                     Contact
                   </a>

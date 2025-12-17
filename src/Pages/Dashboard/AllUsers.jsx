@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { usersApi } from "../../api/users.api";
 import useAuth from "../../Hooks/useAuth";
+import { toast } from "react-hot-toast";
 
 const AllUsers = () => {
   const { user } = useAuth();
@@ -18,13 +19,13 @@ const AllUsers = () => {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      // ✅ make sure usersApi calls GET /admin/users?status=
       const res = await usersApi.getAllUsers({ status });
       const list = Array.isArray(res) ? res : res?.items || res?.data?.items || [];
       setUsers(Array.isArray(list) ? list : []);
     } catch (e) {
       console.error(e);
       setUsers([]);
+      toast.error("Failed to load users");
     } finally {
       setLoading(false);
     }
@@ -34,14 +35,18 @@ const AllUsers = () => {
     load();
   }, [load]);
 
-  const onAction = async (id, fn) => {
+  const onAction = async (id, fn, messages = {}) => {
+    const t = toast.loading(messages.loading || "Processing...");
     try {
       setBusyId(id);
       await fn();
+      toast.success(messages.success || "Done ✅", { id: t });
       await load();
     } catch (e) {
       console.log(e);
-      alert(e?.response?.data?.message || e?.message || "Action failed");
+      toast.error(e?.response?.data?.message || e?.message || messages.error || "Action failed", {
+        id: t,
+      });
     } finally {
       setBusyId(null);
       setConfirm(null);
@@ -56,15 +61,33 @@ const AllUsers = () => {
           <p className="opacity-70 text-sm">Manage roles and user status.</p>
         </div>
 
-        <select
-          className="select select-bordered rounded-xl"
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-        >
-          <option value="">All</option>
-          <option value="active">Active</option>
-          <option value="blocked">Blocked</option>
-        </select>
+        <div className="flex items-center gap-2">
+          <select
+            className="select select-bordered rounded-xl"
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+          >
+            <option value="">All</option>
+            <option value="active">Active</option>
+            <option value="blocked">Blocked</option>
+          </select>
+
+          <button
+            className="btn btn-ghost rounded-xl"
+            onClick={load}
+            disabled={loading}
+            type="button"
+          >
+            {loading ? (
+              <>
+                <span className="loading loading-spinner loading-sm" />
+                Refresh
+              </>
+            ) : (
+              "Refresh"
+            )}
+          </button>
+        </div>
       </div>
 
       <div className="rounded-2xl bg-base-100/80 border border-base-300/60 shadow-sm overflow-x-auto">
@@ -131,7 +154,6 @@ const AllUsers = () => {
                     </td>
 
                     <td className="text-right">
-                      {/* ✅ FIX: DaisyUI dropdown needs tabIndex */}
                       <div className="dropdown dropdown-left">
                         <label
                           tabIndex={0}
@@ -149,7 +171,7 @@ const AllUsers = () => {
                           tabIndex={0}
                           className="dropdown-content z-[50] menu p-2 shadow bg-base-100 rounded-xl w-56 border border-base-200"
                         >
-                          {/* Block/Unblock */}
+                          {/* Block / Unblock */}
                           {u.status === "active" ? (
                             <li>
                               <button
@@ -159,7 +181,15 @@ const AllUsers = () => {
                                     title: "Block user?",
                                     message: `Block ${u.email}? They will not be able to create requests or donate.`,
                                     action: () =>
-                                      onAction(u._id, () => usersApi.blockUser(u._id)),
+                                      onAction(
+                                        u._id,
+                                        () => usersApi.blockUser(u._id),
+                                        {
+                                          loading: "Blocking user...",
+                                          success: "User blocked ✅",
+                                          error: "Failed to block user",
+                                        }
+                                      ),
                                   })
                                 }
                               >
@@ -170,7 +200,13 @@ const AllUsers = () => {
                             <li>
                               <button
                                 disabled={rowBusy}
-                                onClick={() => onAction(u._id, () => usersApi.unblockUser(u._id))}
+                                onClick={() =>
+                                  onAction(u._id, () => usersApi.unblockUser(u._id), {
+                                    loading: "Unblocking user...",
+                                    success: "User unblocked ✅",
+                                    error: "Failed to unblock user",
+                                  })
+                                }
                               >
                                 Unblock
                               </button>
@@ -181,7 +217,13 @@ const AllUsers = () => {
                           <li>
                             <button
                               disabled={isMe || rowBusy || u.role === "volunteer" || u.role === "admin"}
-                              onClick={() => onAction(u._id, () => usersApi.makeVolunteer(u._id))}
+                              onClick={() =>
+                                onAction(u._id, () => usersApi.makeVolunteer(u._id), {
+                                  loading: "Updating role...",
+                                  success: "Role set to volunteer ✅",
+                                  error: "Failed to make volunteer",
+                                })
+                              }
                             >
                               Make Volunteer
                             </button>
@@ -195,7 +237,12 @@ const AllUsers = () => {
                                 setConfirm({
                                   title: "Make Admin?",
                                   message: `Make ${u.email} an admin? This gives full access.`,
-                                  action: () => onAction(u._id, () => usersApi.makeAdmin(u._id)),
+                                  action: () =>
+                                    onAction(u._id, () => usersApi.makeAdmin(u._id), {
+                                      loading: "Promoting to admin...",
+                                      success: "User is now admin ✅",
+                                      error: "Failed to make admin",
+                                    }),
                                 })
                               }
                             >
@@ -228,18 +275,10 @@ const AllUsers = () => {
           <p className="opacity-70 mt-2">{confirm?.message}</p>
 
           <div className="modal-action">
-            <button
-              className="btn btn-ghost rounded-xl"
-              onClick={() => setConfirm(null)}
-              type="button"
-            >
+            <button className="btn btn-ghost rounded-xl" onClick={() => setConfirm(null)} type="button">
               Cancel
             </button>
-            <button
-              className="btn btn-primary rounded-xl"
-              onClick={() => confirm?.action?.()}
-              type="button"
-            >
+            <button className="btn btn-primary rounded-xl" onClick={() => confirm?.action?.()} type="button">
               Confirm
             </button>
           </div>

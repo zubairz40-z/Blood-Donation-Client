@@ -45,7 +45,7 @@ const Banner = () => {
 
           <div className="mt-6 flex flex-wrap gap-3">
             <NavLink
-              to="/register"
+              to="/dashboard/become-donor"
               className="inline-flex items-center justify-center rounded-xl bg-secondary px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-secondary/25 transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-white/40 active:scale-[0.98]"
             >
               Join as a Donor

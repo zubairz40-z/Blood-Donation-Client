@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from "react";
-import { NavLink, Outlet } from "react-router";
+import React, { useEffect, useMemo, useState } from "react";
+import { NavLink, Outlet, useNavigate } from "react-router";
 import useAuth from "../../Hooks/useAuth";
 import useUserRole from "../../Hooks/useUserRole";
+import { toast } from "react-hot-toast";
 import {
   FiHome,
   FiUser,
@@ -12,19 +13,34 @@ import {
   FiUsers,
   FiDroplet,
   FiPlusCircle,
+  FiRefreshCcw,
+  FiAlertTriangle,
 } from "react-icons/fi";
 
 const DashboardLayout = () => {
   const { user, logOut } = useAuth();
   const { dbUser, role, roleLoading } = useUserRole();
+  const navigate = useNavigate();
 
-  // ✅ MongoDB = source of truth
-  const displayName = dbUser?.name || "User";
+  const displayName = dbUser?.name || user?.displayName || "User";
   const email = user?.email || "";
-  const photoURL = dbUser?.avatar || "";
+  const photoURL = dbUser?.avatar || user?.photoURL || "";
   const avatarLetter = (displayName?.[0] || email?.[0] || "U").toUpperCase();
 
   const [imgOk, setImgOk] = useState(true);
+
+  // ✅ prevent infinite loading UI
+  const [loadingTooLong, setLoadingTooLong] = useState(false);
+  useEffect(() => {
+    if (!roleLoading) {
+      setLoadingTooLong(false);
+      return;
+    }
+    const t = setTimeout(() => setLoadingTooLong(true), 12000); // 12s
+    return () => clearTimeout(t);
+  }, [roleLoading]);
+
+  const token = localStorage.getItem("access-token");
 
   const linkClass = ({ isActive }) =>
     [
@@ -47,6 +63,7 @@ const DashboardLayout = () => {
     const donor = [
       { to: "/dashboard/my-donation-requests", label: "My Donation Requests", icon: FiDroplet },
       { to: "/dashboard/create-donation-request", label: "Create Donation Request", icon: FiPlusCircle },
+      { to: "/dashboard/funding", label: "Funding", icon: FiDollarSign },
     ];
 
     const admin = [
@@ -57,6 +74,7 @@ const DashboardLayout = () => {
 
     const volunteer = [
       { to: "/dashboard/all-blood-donation-request", label: "All Blood Requests", icon: FiDroplet },
+      { to: "/dashboard/funding", label: "Funding", icon: FiDollarSign },
     ];
 
     const footer = [{ to: "/", label: "Back to Home", icon: FiArrowLeft }];
@@ -66,7 +84,23 @@ const DashboardLayout = () => {
     return [...common, ...donor, ...footer];
   }, [role]);
 
-  if (roleLoading) {
+  const handleLogout = async () => {
+    const t = toast.loading("Logging out...");
+    try {
+      await logOut();
+      toast.success("Logged out", { id: t });
+      navigate("/login");
+    } catch (e) {
+      toast.error(e?.message || "Logout failed", { id: t });
+    }
+  };
+
+  const handleRefresh = () => {
+    window.location.reload();
+  };
+
+  // ✅ If role loading and not too long, show spinner
+  if (roleLoading && !loadingTooLong) {
     return (
       <div className="min-h-screen grid place-items-center">
         <span className="loading loading-spinner loading-lg" />
@@ -74,14 +108,57 @@ const DashboardLayout = () => {
     );
   }
 
-  if (!role) {
+  // ✅ If token missing, show message (prevents silent infinite loading)
+  if (!token) {
     return (
-      <div className="min-h-screen grid place-items-center">
-        <div className="rounded-2xl bg-base-100 border border-base-300/60 shadow-sm p-6 text-center">
-          <p className="font-semibold">User role not found</p>
-          <p className="opacity-70 text-sm mt-1">
-            Please login again or check your users collection.
+      <div className="min-h-screen grid place-items-center p-6">
+        <div className="rounded-2xl bg-base-100 border border-base-300/60 shadow-sm p-6 text-center max-w-md w-full">
+          <div className="flex items-center justify-center gap-2 text-warning">
+            <FiAlertTriangle />
+            <p className="font-semibold">Session token missing</p>
+          </div>
+          <p className="opacity-70 text-sm mt-2">
+            Firebase login is OK, but your server JWT is missing. Please login again.
           </p>
+
+          <div className="mt-4 flex gap-2 justify-center flex-wrap">
+            <button className="btn btn-primary rounded-xl" onClick={() => navigate("/login")}>
+              Go to Login
+            </button>
+            <button className="btn btn-ghost rounded-xl" onClick={handleRefresh}>
+              <FiRefreshCcw /> Refresh
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ If loading took too long OR role missing, show error UI instead of infinite spinner
+  if (loadingTooLong || !role) {
+    return (
+      <div className="min-h-screen grid place-items-center p-6">
+        <div className="rounded-2xl bg-base-100 border border-base-300/60 shadow-sm p-6 text-center max-w-md w-full">
+          <div className="flex items-center justify-center gap-2 text-error">
+            <FiAlertTriangle />
+            <p className="font-semibold">Dashboard failed to load</p>
+          </div>
+
+          <p className="opacity-70 text-sm mt-2">
+            Could not load your user role from the database. Most common reasons:
+            <br />• <span className="font-medium">/users/me</span> returns 401 (token issue)
+            <br />• user not saved in MongoDB (POST /users missing)
+            <br />• CORS blocked request
+          </p>
+
+          <div className="mt-4 flex gap-2 justify-center flex-wrap">
+            <button className="btn btn-secondary rounded-xl" onClick={handleRefresh}>
+              <FiRefreshCcw /> Refresh
+            </button>
+            <button className="btn btn-error rounded-xl" onClick={handleLogout}>
+              <FiLogOut /> Logout
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -137,15 +214,11 @@ const DashboardLayout = () => {
                   </div>
 
                   <div className="min-w-0">
-                    <h2 className="text-lg font-bold text-base-content truncate">
-                      {displayName}
-                    </h2>
+                    <h2 className="text-lg font-bold text-base-content truncate">{displayName}</h2>
                     <p className="text-xs opacity-70 truncate">{email}</p>
 
                     <div className="mt-2">
-                      <span className="badge badge-secondary badge-outline capitalize">
-                        {role}
-                      </span>
+                      <span className="badge badge-secondary badge-outline capitalize">{role}</span>
 
                       {dbUser?.status && (
                         <span
@@ -163,9 +236,7 @@ const DashboardLayout = () => {
 
               {/* Nav */}
               <div className="mt-6">
-                <p className="px-2 text-xs font-semibold tracking-wide opacity-60">
-                  NAVIGATION
-                </p>
+                <p className="px-2 text-xs font-semibold tracking-wide opacity-60">NAVIGATION</p>
 
                 <nav className="mt-2 space-y-1">
                   {navItems.map((item) => {
@@ -191,11 +262,7 @@ const DashboardLayout = () => {
 
               {/* Logout */}
               <div className="mt-6">
-                <button
-                  onClick={logOut}
-                  className="btn btn-error w-full rounded-xl"
-                  type="button"
-                >
+                <button onClick={handleLogout} className="btn btn-error w-full rounded-xl" type="button">
                   <FiLogOut />
                   <span className="ml-2">Logout</span>
                 </button>

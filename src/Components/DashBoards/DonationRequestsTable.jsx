@@ -24,6 +24,7 @@ const DonationRequestsTable = ({
   onStatus,
   onEditRoute,
   detailsRouteBase = "/donation-requests",
+  disableVolunteerStatus = false, // optional stricter behavior
 }) => {
   const navigate = useNavigate();
 
@@ -62,11 +63,11 @@ const DonationRequestsTable = ({
                 <span className="badge badge-outline">{r.bloodGroup}</span>
               </td>
 
-              {/* ✅ STATUS COLUMN */}
+              {/* STATUS */}
               <td>
                 <span className={badge(r.status)}>{r.status}</span>
 
-                {/* ✅ Donor: done/cancel only when inprogress */}
+                {/* Donor: done/cancel only when inprogress */}
                 {mode === "donor" && r.status === "inprogress" && (
                   <div className="mt-2 flex gap-2">
                     <button
@@ -86,13 +87,14 @@ const DonationRequestsTable = ({
                   </div>
                 )}
 
-                {/* ✅ Admin/Volunteer: status dropdown always */}
+                {/* Admin/Volunteer: dropdown always */}
                 {(mode === "admin" || mode === "volunteer") && (
                   <div className="mt-2">
                     <select
                       className="select select-bordered select-xs rounded-lg"
                       value={r.status}
                       onChange={(e) => onStatus?.(r._id, e.target.value)}
+                      disabled={mode === "volunteer" && disableVolunteerStatus}
                     >
                       <option value="pending">pending</option>
                       <option value="inprogress">inprogress</option>
@@ -103,18 +105,19 @@ const DonationRequestsTable = ({
                 )}
               </td>
 
+              {/* ✅ FIX #1: show donor info only if exists */}
               <td className="text-sm">
-                {r.status === "inprogress" ? (
+                {r.status === "inprogress" && (r.donorName || r.donorEmail) ? (
                   <div className="space-y-1">
-                    <p className="font-medium">{r.donorName}</p>
-                    <p className="opacity-70">{r.donorEmail}</p>
+                    <p className="font-medium">{r.donorName || "—"}</p>
+                    <p className="opacity-70">{r.donorEmail || "—"}</p>
                   </div>
                 ) : (
                   <span className="opacity-60">—</span>
                 )}
               </td>
 
-              {/* ✅ ACTIONS */}
+              {/* ACTIONS */}
               <td className="text-right">
                 <div className="flex justify-end gap-2 flex-wrap">
                   <button

@@ -144,7 +144,7 @@ const AboutHistorySection = () => {
 
                 <div className="mt-4 flex flex-wrap gap-3">
                   <NavLink
-                    to="/register"
+                    to="/dashboard/become-donor"
                     className="inline-flex items-center justify-center rounded-xl bg-secondary px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-secondary/20 transition hover:opacity-90 active:scale-[0.98]"
                   >
                     Become a Donor
